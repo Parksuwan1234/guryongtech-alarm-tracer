@@ -47,3 +47,17 @@ describe("현장 메모 정리(규칙)", () => {
     expect(r.causeCandidates).toEqual([]);
   });
 });
+
+describe("현장 메모 정리: 조치 내용에는 한 일만", () => {
+  it("시간·결과 조각은 조치 내용에서 뺀다", () => {
+    const r = ruleNormalize("X243 센서 렌즈 오염 청소, 10분, 해결", []);
+    expect(r.action).toBe("X243 센서 렌즈 오염 청소");
+    expect(r.durationMin).toBe(10);
+    expect(r.result).toBe("해결");
+    expect(r.actionType).toBe("청소");
+  });
+  it("측정값처럼 의미 있는 조각은 남긴다", () => {
+    const r = ruleNormalize("앰프 팬 교체함, 40분 걸림, 온도 72도까지 올라갔었음, 지금 정상", []);
+    expect(r.action).toBe("앰프 팬 교체함, 온도 72도까지 올라갔었음");
+  });
+});

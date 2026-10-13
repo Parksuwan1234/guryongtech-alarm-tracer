@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { GLOSSARY, GLOSSARY_MAP } from "@/data/glossary";
 
@@ -165,7 +166,7 @@ export function Term({ k, children }: { k: string; children?: ReactNode }) {
 
 function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTab) => void; onClose: () => void }) {
   const TABS: { id: HelpTab; label: string }[] = [
-    { id: "start", label: "3단계 사용법" },
+    { id: "start", label: "화면별 사용법" },
     { id: "color", label: "색과 표시" },
     { id: "terms", label: "용어 풀이" },
   ];
@@ -185,10 +186,20 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
           </button>
         </div>
         <p className="mt-1 text-sm text-slate-400">
-          배터리 라인 설비 31대에서 알람이 나면, 설비를 움직이는 프로그램(PLC 래더)을 거꾸로 따라가 <b className="text-slate-200">무엇이 알람을 켰는지</b>와{" "}
-          <b className="text-slate-200">먼저 할 일</b>을 보여 줍니다. 조치를 기록하면 쌓인 기록으로 <b className="text-slate-200">다시 안 나게 하는 방법</b>을
+          배터리 라인 설비 31대에서 알람이 발생하면, 설비를 움직이는 프로그램(PLC 래더)을 거꾸로 따라가 <b className="text-slate-200">무엇이 알람을 켰는지</b>와{" "}
+          <b className="text-slate-200">먼저 할 일</b>을 보여 줍니다. 조치를 기록하면 쌓인 기록으로 <b className="text-slate-200">재발을 막는 방법</b>을
           제안합니다. 모든 데이터는 시연용 가상 데이터입니다.
         </p>
+        <Link
+          href="/tour"
+          onClick={onClose}
+          className="mt-3 flex items-center justify-between rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-sm text-sky-100 hover:bg-sky-500/20"
+        >
+          <span>
+            <b>5분 체험 순서</b> — 처음이면 이 순서대로 버튼만 누르세요 (설치·로그인 없음)
+          </span>
+          <span aria-hidden>→</span>
+        </Link>
         <div className="mt-4 flex gap-1 border-b border-slate-800">
           {TABS.map((t) => (
             <button
@@ -206,7 +217,7 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
             {[
               [
                 "빨간·주황 칸을 누르세요",
-                "실시간 현황에서 빨간 칸은 중알람(설비 멈춤), 주황 칸은 경알람(주의)입니다. 오른쪽 '대응 목록'은 급한 순서로 정렬돼 있고, 새 알람이 나면 오른쪽 위에 알림이 뜹니다.",
+                "실시간 현황에서 빨간 칸은 중알람(설비 멈춤), 주황 칸은 경알람(주의)입니다. 오른쪽 '대응 목록'은 급한 순서로 정렬돼 있고, 새 알람이 발생하면 오른쪽 위에 알림이 뜹니다.",
               ],
               [
                 "알람 상세에서 먼저 할 일을 확인하세요",
@@ -285,47 +296,6 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-/** 첫 화면 상단의 짧은 안내 — 닫으면 이 브라우저에서는 다시 안 보입니다. */
-export function FirstVisitGuide() {
-  const { open, setMode } = useHelp();
-  const [hidden, setHidden] = useState(true);
-  useEffect(() => {
-    try {
-      setHidden(window.localStorage.getItem("at-guide-dismissed") === "1");
-    } catch {
-      setHidden(false);
-    }
-  }, []);
-  if (hidden) return null;
-  const dismiss = () => {
-    setHidden(true);
-    try {
-      window.localStorage.setItem("at-guide-dismissed", "1");
-    } catch {
-      /* 저장 불가 환경 — 이번 화면에서만 닫음 */
-    }
-  };
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2.5 text-sm">
-      <b className="text-sky-200">처음 보시나요?</b>
-      <span className="text-slate-300">
-        ① 빨간·주황 칸을 누르고 → ② &lsquo;알람 원인 보기&rsquo;에서 먼저 할 일을 확인 → ③ 조치 후 기록하면, 기록이 쌓여 재발 방지안이 나옵니다.
-      </span>
-      <span className="ml-auto flex gap-2">
-        <button onClick={() => setMode("simple")} className="rounded-md border border-sky-500/50 px-2 py-0.5 text-sky-200 hover:bg-sky-600/10">
-          쉽게 보기
-        </button>
-        <button onClick={() => open("terms")} className="rounded-md border border-sky-500/50 px-2 py-0.5 text-sky-200 hover:bg-sky-600/10">
-          용어 풀이
-        </button>
-        <button onClick={dismiss} className="rounded-md px-2 py-0.5 text-slate-400 hover:bg-slate-800">
-          닫기
-        </button>
-      </span>
     </div>
   );
 }

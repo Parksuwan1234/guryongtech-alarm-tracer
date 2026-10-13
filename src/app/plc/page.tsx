@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SequenceFlow } from "@/components/Flow";
 import { Btn, Card, Field, SourceBadge, inputCls } from "@/components/ui";
 import { EQUIPMENT, PROCESS_LABEL } from "@/data/equipment";
 import { buildRungs, parseProgram, traceAlarm, whereUsed } from "@/lib/ladder";
+import { josa } from "@/lib/ko";
 import { detectSequences } from "@/lib/sequence";
 import { useData } from "@/lib/store";
 import type { PlcProgram, ProcessKind } from "@/lib/types";
@@ -32,7 +33,7 @@ function validate(p: PlcProgram) {
   const rungs = buildRungs(parsed.rows);
   const outs = new Set(rungs.flatMap((r) => r.outputs.map((o) => o.device)));
   for (const a of parsed.alarms) {
-    if (!outs.has(a.device)) errors.push(`${a.code}: 알람 디바이스 ${a.device}를 켜는 OUT/SET이 래더에 없습니다`);
+    if (!outs.has(a.device)) errors.push(`${a.code}: 알람 디바이스 ${josa(a.device, "을")} 켜는 OUT/SET이 래더에 없습니다`);
     else {
       const t = traceAlarm(parsed, a.code);
       if (t && !t.leaves.length) notes.push(`${a.code}: 원천까지 따라갈 접점이 없습니다`);
@@ -64,6 +65,22 @@ export default function PlcPage() {
   const [dev, setDev] = useState<string | null>(null);
   const [draft, setDraft] = useState<PlcProgram>({ id: "", name: "", ladderCsv: "", devicesCsv: "", alarmsCsv: "" });
   const [msg, setMsg] = useState<string | null>(null);
+
+  // 체험 순서·자료에서 바로 열기: /plc?view=STACK_V1#sequence (처음 한 번만 — 저장 뒤에 다시 스크롤하지 않게)
+  const deepLinked = useRef(false);
+  useEffect(() => {
+    if (deepLinked.current) return;
+    try {
+      const v = new URLSearchParams(window.location.search).get("view");
+      if (v && data.parsed.has(v)) {
+        deepLinked.current = true;
+        setView(v);
+        if (window.location.hash === "#sequence") setTimeout(() => document.getElementById("sequence")?.scrollIntoView({ block: "start" }), 150);
+      }
+    } catch {
+      /* 주소를 못 읽으면 기본 프로그램 */
+    }
+  }, [data.parsed]);
 
   const prog = data.parsed.get(view);
   const check = useMemo(() => (draft.ladderCsv && draft.alarmsCsv ? validate(draft) : null), [draft]);
@@ -322,7 +339,7 @@ export default function PlcPage() {
                 }
                 onClick={async () => {
                   await data.saveProgram(draft);
-                  setMsg(`${draft.id}를 저장했습니다. 위 '설비별 프로그램 지정'에서 적용할 설비를 고르세요.`);
+                  setMsg(`${josa(draft.id, "을")} 저장했습니다. 위 '설비별 프로그램 지정'에서 적용할 설비를 고르세요.`);
                   setView(draft.id);
                   setDraft({ id: "", name: "", ladderCsv: "", devicesCsv: "", alarmsCsv: "" });
                 }}
@@ -336,6 +353,7 @@ export default function PlcPage() {
       </div>
 
       <Card
+        id="sequence"
         title={
           <span>
             순차 동작(시퀀스) 흐름도 <span className="mono text-slate-400">{prog?.id}</span>

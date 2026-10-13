@@ -1,5 +1,5 @@
 // 순차 동작(시퀀스) 흐름도 — 올린 래더에서 단계·전이 조건·단계별 출력·감시 타이머·연결된 알람을 찾아 그림으로 그릴 수 있게 정리한다.
-// 남이 짠 래더도 "어떤 순서로 움직이고, 어디서 기다리다가 알람이 나는지"를 한눈에 보게 하는 것이 목적이다.
+// 남이 짠 래더도 "어떤 순서로 움직이고, 어디서 기다리다가 알람이 발생하는지"를 한눈에 보게 하는 것이 목적이다.
 // 코드가 계산하므로 같은 래더·같은 값이면 늘 같은 결과가 나온다.
 
 import { Evaluator, buildRungs, findStepEdges, kToNumber, sequenceRoots, type Contact, type Rung, type Values } from "./ladder";

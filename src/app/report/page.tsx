@@ -84,7 +84,7 @@ export default function ReportPage() {
     }),
     `■ 미해결 건`,
     ...(unresolved.length ? unresolved.map((l) => `  - ${l.equipmentId} ${l.alarmCode} ${l.cause} / 시도: ${l.action} (${l.worker})`) : ["  - 없음"]),
-    `■ 많이 난 알람`,
+    `■ 자주 발생한 알람`,
     ...top.map((t) => `  - ${t.alarmCode} ${t.count}건 · ${fmtMin(t.downtimeMin)}`),
     `■ 다가오는 예방정비`,
     ...(overduePm.length ? overduePm.map((s) => `  - ${s.equipmentId} ${s.action} (권장 ${fmtDate(s.next, false)})`) : ["  - 없음"]),
@@ -187,7 +187,7 @@ export default function ReportPage() {
             {!unresolved.length && <li className="text-slate-400">없음</li>}
           </ul>
         </Card>
-        <Card title="이 근무조에 많이 난 알람">
+        <Card title="이 근무조에 자주 발생한 알람">
           <ul className="space-y-1 text-sm">
             {top.map((t) => (
               <li key={t.alarmCode} className="flex gap-2">

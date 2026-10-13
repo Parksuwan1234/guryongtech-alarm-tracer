@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { FirstVisitGuide, Term } from "@/components/Help";
+import { StartBanner } from "@/components/Guide";
+import { Term } from "@/components/Help";
 import { LineBoard } from "@/components/LineBoard";
 import { WhyNotView } from "@/components/Trace";
 import { Btn, Card, EquipIcon, LevelBadge, SourceBadge, Stat, StatusBadge, inputCls } from "@/components/ui";
@@ -73,7 +74,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4">
-      <FirstVisitGuide />
+      <StartBanner />
 
       {/* 한 줄 상황 요약 — 처음 보는 사람도 '어디부터'를 바로 알도록 */}
       <div
@@ -164,7 +165,7 @@ export default function Dashboard() {
                 이상 설비만 강조
               </label>
               <span className="text-slate-500">|</span>
-              <span className="text-slate-400">시뮬레이션</span>
+              <span className="text-slate-400" title="무작위로 가상 알람이 발생하는 빠르기">가상 알람 발생</span>
               {SPEEDS.map((s) => (
                 <button
                   key={s.id}

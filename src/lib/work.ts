@@ -5,7 +5,7 @@ import type { ActionLog, AlarmWork, WorkStatus } from "./types";
 
 export const OWNER_SUGGESTIONS = ["보전 A조", "보전 B조", "보전 C조", "PLC 담당", "공정 담당", "설비기술팀", "유틸리티팀", "품질팀"];
 
-/** 같은 설비·알람의 아직 끝나지 않은(종결 전) 대응 건 — 알람이 다시 나도 같은 문제로 이어서 봅니다 */
+/** 같은 설비·알람의 아직 끝나지 않은(종결 전) 대응 건 — 알람이 다시 발생해도 같은 문제로 이어서 봅니다 */
 export function openWorkFor(work: Map<string, AlarmWork>, equipmentId: string, alarmCode: string): AlarmWork | undefined {
   return Array.from(work.values())
     .filter((w) => w.equipmentId === equipmentId && w.alarmCode === alarmCode && w.status !== "종결")

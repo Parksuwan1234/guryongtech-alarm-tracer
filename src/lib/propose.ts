@@ -1,4 +1,4 @@
-// 개선 제안 엔진 — 조치이력 DB를 근거로 '알람이 다시 안 나게' 하는 방법을 역으로 제안
+// 개선 제안 엔진 — 조치이력 DB를 근거로 '알람 재발을 막는' 방법을 역으로 제안
 //
 // 규칙(모두 코드로 계산, 같은 데이터면 같은 결과):
 //  1. debounce : 경알람이 리셋만으로 60% 이상 해결 + 신호 지속시간이 짧음 → 지속 판정 타이머 추가 래더안
@@ -138,7 +138,7 @@ export function isInManual(action: string, manuals: ManualEntry[]): boolean {
   return hit / tokens.length >= 0.6;
 }
 
-/** 같은 알람이 여러 설비에서 15분 안에 함께 난 횟수 (공용 유틸리티·MES 장애 의심) */
+/** 같은 알람이 여러 설비에서 15분 안에 함께 발생한 횟수 (공용 유틸리티·MES 장애 의심) */
 export function simultaneousClusters(logs: ActionLog[], windowMin = 15): { at: string; units: string[] }[] {
   const sorted = [...logs].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
   const out: { at: string; units: string[] }[] = [];
@@ -381,7 +381,7 @@ export function buildProposals(input: ProposalInput): Proposal[] {
           stages: stagesOf(avoidedLogs.length, n, validation, pilotTarget),
           risks: [
             "알람으로 설비가 멈추면서 신호가 짧게 기록됐을 수 있습니다. 짧다는 이유만으로 불필요한 알람이라 단정하지 말고 정지 전후 신호를 함께 확인하세요.",
-            `신호가 ${th.toFixed(1)}초 이상 이어진 ${secLogs.length - avoidedLogs.length}건(오염·위치 틀어짐 등)은 이 데이터에서는 그대로 알람이 납니다.`,
+            `신호가 ${th.toFixed(1)}초 이상 이어진 ${secLogs.length - avoidedLogs.length}건(오염·위치 틀어짐 등)은 이 데이터에서는 그대로 알람이 발생합니다.`,
             `같은 프로그램(${programId})을 쓰는 ${units.length}대에 함께 영향을 줍니다. 1대 시범 적용 후 확대하세요.`,
           ],
           logIds: avoidedLogs.map((l) => l.id),
@@ -615,7 +615,7 @@ export function buildProposals(input: ProposalInput): Proposal[] {
           id: `pm:${programId}:${code}`,
           kind: "pm",
           title: `${code} ${alarm.name} — ${pmDays}일 주기 예방정비: ${action}`,
-          summary: `알람이 난 뒤에 '${action}'을 한 간격이 평균 ${m.toFixed(1)}일로 일정합니다(변동 ${pct(cv)}). 알람 전에 계획 정비로 바꾸는 것을 제안합니다.`,
+          summary: `알람이 발생한 뒤에 '${action}'을 한 간격이 평균 ${m.toFixed(1)}일로 일정합니다(변동 ${pct(cv)}). 알람 전에 계획 정비로 바꾸는 것을 제안합니다.`,
           appliesTo: Array.from(lastBy.keys()).sort(),
           owner: "보전",
           evidence: [
@@ -729,7 +729,7 @@ export function buildProposals(input: ProposalInput): Proposal[] {
         id: `unit:${programId}:${code}:${spread.top.unit}`,
         kind: "unit",
         title: `${spread.top.unit} ${alarm.name} — 설비 편중 원인 조사`,
-        summary: `같은 프로그램 ${units.length}대 중 ${spread.top.unit}에서 ${pct(spread.topShare)}가 났습니다. 같은 래더인데 한 대에 몰렸으므로 래더보다 이 설비의 조건(부품·레시피·가동 시간) 차이를 먼저 조사합니다.`,
+        summary: `같은 프로그램 ${units.length}대 중 ${spread.top.unit}에서 전체의 ${pct(spread.topShare)}가 발생했습니다. 같은 래더인데 한 대에 몰렸으므로 래더보다 이 설비의 조건(부품·레시피·가동 시간) 차이를 먼저 조사합니다.`,
         appliesTo: [spread.top.unit],
         owner: "보전",
         evidence: [

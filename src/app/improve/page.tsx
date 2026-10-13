@@ -45,7 +45,13 @@ export default function ImprovePage() {
 
   // 다른 화면에서 /improve#제안ID 로 들어오면 그 제안을 연다
   useEffect(() => {
-    const h = decodeURIComponent(window.location.hash.slice(1));
+    // 주소의 #뒷부분이 깨져 있어도 화면이 멈추지 않게 (못 읽으면 첫 제안)
+    let h = "";
+    try {
+      h = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      h = "";
+    }
     if (h) setSel(h);
   }, []);
 
@@ -71,6 +77,8 @@ export default function ImprovePage() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      // 팝업이 떠 있거나 Alt·Ctrl·⌘ 조합(뒤로 가기 등)일 때는 넘기지 않음
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || document.querySelector('[aria-modal="true"]')) return;
       if (e.key === "ArrowRight" && idx >= 0 && idx < list.length - 1) go(list[idx + 1].id);
       if (e.key === "ArrowLeft" && idx > 0) go(list[idx - 1].id);
     };
@@ -84,7 +92,7 @@ export default function ImprovePage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">개선 제안 — 조치이력 DB가 알려 주는 &lsquo;다시 안 나게 하는 법&rsquo;</h1>
+        <h1 className="text-xl font-semibold">개선 제안 — 조치이력 DB가 알려 주는 &lsquo;재발을 막는 법&rsquo;</h1>
         <p className="mt-1 text-sm text-slate-400">
           최근 90일 조치이력을 코드로 분석해, 리셋만으로 풀리던 알람은 래더를 고치고, 반복 교체는 예방정비로, 현장 노하우는 매뉴얼로 옮기자고 제안합니다. 각
           제안에는 근거 수치와 &lsquo;과거에 적용했다면&rsquo; 다시 계산한 효과가 붙습니다.
@@ -219,10 +227,10 @@ function UnitSpread({ p }: { p: Proposal }) {
     b.verdict === "single"
       ? `${top.unit}에 ${Math.round(b.topShare * 100)}%가 몰렸습니다 — 설비군 전체 변경보다 그 호기 점검이 먼저입니다.`
       : b.verdict === "common"
-        ? `${b.rows.length}대 중 ${b.affected}대에서 났고, 가장 많은 ${top.unit}도 ${Math.round(b.topShare * 100)}%(${top.count}건)입니다 — 한 호기 문제가 아니라 설비군 공통으로 볼 근거입니다.`
-        : `${b.affected}대에서만 났습니다 — 난 호기 위주로 먼저 확인하세요.`;
+        ? `${b.rows.length}대 중 ${b.affected}대에서 발생했고, 가장 많은 ${top.unit}도 ${Math.round(b.topShare * 100)}%(${top.count}건)입니다 — 한 호기 문제가 아니라 설비군 공통으로 볼 근거입니다.`
+        : `${b.affected}대에서만 발생했습니다 — 발생한 호기부터 먼저 확인하세요.`;
   return (
-    <div className="rounded-lg border border-slate-800 bg-black/20 p-3">
+    <div data-guide="unit-spread" className="rounded-lg border border-slate-800 bg-black/20 p-3">
       <div className="mb-2 flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-semibold text-slate-200">호기별 분포</span>
         <span className="text-[11px] text-slate-400">
@@ -240,8 +248,8 @@ function UnitSpread({ p }: { p: Proposal }) {
               title={`${r.unit} · ${r.count}건 · 리셋으로 해결 ${r.resetResolved}건${r.median !== null ? ` · 측정값 중앙값 ${fmt(r.median)} (${r.measuredN}건)` : " · 측정값 없음"}`}
             >
               <div className="flex items-center justify-between">
-                <span className="mono text-slate-200">{r.unit}</span>
-                <span className="tabular-nums text-slate-300">{r.count}건</span>
+                <span className="mono whitespace-nowrap text-slate-200">{r.unit}</span>
+                <span className="whitespace-nowrap tabular-nums text-slate-300">{r.count}건</span>
               </div>
               <div className="mt-1 h-1.5 rounded bg-slate-800">
                 <div className="h-1.5 rounded bg-sky-500/70" style={{ width: `${(r.count / max) * 100}%` }} />
@@ -299,7 +307,7 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
   );
 
   return (
-    <section id={p.id} className={`scroll-mt-20 rounded-xl border bg-slate-900/60 ${focused ? "border-sky-500 ring-2 ring-sky-500/40" : "border-slate-800"}`}>
+    <section id={p.id} data-guide="proposal" className={`scroll-mt-20 rounded-xl border bg-slate-900/60 ${focused ? "border-sky-500 ring-2 ring-sky-500/40" : "border-slate-800"}`}>
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 px-4 py-2.5">
         <span className={`rounded border px-2 py-0.5 text-[11px] font-semibold ${KIND_TONE[p.kind]}`}>{KIND_LABEL[p.kind]}</span>
         <LevelBadge level={p.level} />
@@ -329,10 +337,10 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
                   {...p.histogram}
                   avoidLabel={
                     p.histogram.labels?.avoid ??
-                    (p.kind === "pm" ? "제안 주기 뒤에 난 고장 → 미리 정비로 막음" : p.kind === "inspect" ? "1초 안에 끝난 신호" : "억제되는 알람(추정)")
+                    (p.kind === "pm" ? "제안 주기 뒤에 발생한 고장 → 미리 정비로 막음" : p.kind === "inspect" ? "1초 안에 끝난 신호" : "억제되는 알람(추정)")
                   }
                   keepLabel={
-                    p.histogram.labels?.keep ?? (p.kind === "pm" ? "제안 주기보다 먼저 난 고장" : p.kind === "inspect" ? "1초 넘게 이어진 신호" : "그대로 알람")
+                    p.histogram.labels?.keep ?? (p.kind === "pm" ? "제안 주기보다 먼저 발생한 고장" : p.kind === "inspect" ? "1초 넘게 이어진 신호" : "그대로 알람")
                   }
                 />
               </div>

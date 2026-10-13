@@ -47,3 +47,11 @@ h2,
   html, body { background: #fff; color: #000; }
   .no-print { display: none !important; }
 }
+
+/* 좁은 화면(휴대폰)에서 표·도면이 화면 폭을 밀어내지 않게: 그리드 칸은 내용보다 좁아질 수 있고, 넓은 표는 그 안에서 가로로 넘깁니다 */
+.grid > * {
+  min-width: 0;
+}
+input[type="file"] {
+  max-width: 100%;
+}

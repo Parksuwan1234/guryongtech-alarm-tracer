@@ -77,6 +77,8 @@ export default function AlarmDetail() {
   const [ai, setAi] = useState<{ text: string; model?: string; masked?: number } | null>(null);
   const [aiState, setAiState] = useState<"idle" | "loading" | "none">("idle");
   const [saved, setSaved] = useState<string | null>(null);
+  // 방금 저장한 조치 — 저장 후 인수인계 메모에 반영 (설비가 가동으로 바뀌어도 발생 시각·조치가 남도록)
+  const [savedLog, setSavedLog] = useState<{ occurredAt: string; action: string; result: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const rule = trace ? ruleExplain(trace, manuals, causes, spreadText, related) : "";
@@ -108,7 +110,7 @@ export default function AlarmDetail() {
   if (!trace)
     return (
       <div className="text-slate-400">
-        {prog.id}에 알람 {code}가 없습니다.
+        {prog.id}에 알람 {josa(code, "이")} 없습니다.
       </div>
     );
 
@@ -132,7 +134,7 @@ export default function AlarmDetail() {
   const factText = c0
     ? c0.compare
       ? `${c0.comment} 값이 ${c0.value}로 기준(${c0.compare.op} ${c0.compare.value})을 넘어, 스텝 ${c0.step}의 조건이 성립했고 ${trace.alarm.device}(알람)이 켜졌습니다.`
-      : `${c0.comment}(${c0.device})가 ${c0.value ? "ON" : "OFF"}${normalOf(c0.device) != null ? `(평상시 ${normalOf(c0.device) ? "ON" : "OFF"})` : ""}이 되어, 스텝 ${c0.step}의 조건이 성립했고 ${trace.alarm.device}(알람)이 켜졌습니다.`
+      : `${josa(`${c0.comment}(${c0.device})`, "이")} ${josa(`${c0.value ? "ON" : "OFF"}${normalOf(c0.device) != null ? `(평상시 ${normalOf(c0.device) ? "ON" : "OFF"})` : ""}`, "이")} 되어, 스텝 ${c0.step}의 조건이 성립했고 ${trace.alarm.device}(알람)이 켜졌습니다.`
     : tm0 && seqLeaf
       ? `${tm0.device} 타이머(${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초) 판정으로 알람이 켜졌고, 추적은 ${josa(`${seqLeaf.device} ${seqLeaf.comment}`, "을")} 거쳐 순차 동작(${seqs[0]?.title ?? seqLeaf.sequence})으로 이어집니다. 센서 정상을 증명한 것은 아닙니다.`
       : tm0
@@ -185,10 +187,10 @@ export default function AlarmDetail() {
 
   const handover = [
     `[인수인계] ${eq.id} ${eq.name} — [${trace.alarm.level}알람] ${code} ${trace.alarm.name}`,
-    `· 발생: ${active ? `${fmtDate(state!.since)} (${elapsed(state!.since, live.now)} 경과)` : "-"}`,
+    `· 발생: ${active ? `${fmtDate(state!.since)} (${elapsed(state!.since, live.now)} 경과)` : savedLog ? fmtDate(savedLog.occurredAt) : "-"}`,
     `· 래더 추적: ${trace.alarm.device} ← ${trace.culprits.map((c) => `${c.device}(${c.comment})`).join(", ") || "래더 로직(타이머 판정)"} [${kind}]`,
-    manual ? `· 진행한 조치: ${manual.steps.filter((s) => checked[s]).join(" → ") || "아직 없음"}` : "",
-    causes[0] ? `· 과거 해결 사례: ${causes[0].action} (해결 ${causes[0].resolved}/${causes[0].tries})` : "",
+    `· 진행한 조치: ${[manual ? manual.steps.filter((s) => checked[s]).join(" → ") : "", savedLog ? `${savedLog.action} (${savedLog.result})` : ""].filter(Boolean).join(" · ") || "아직 없음"}`,
+    best ? `· 과거 해결 사례: ${best.action} (해결 ${best.resolved}/${best.tries})` : "",
     related[0] ? `· 재발 방지안: ${related[0].title}` : "",
   ]
     .filter(Boolean)
@@ -336,7 +338,7 @@ export default function AlarmDetail() {
           </div>
         </div>
 
-        <div className="order-first rounded-xl border border-sky-500/40 bg-sky-500/5 p-4 xl:order-none">
+        <div data-guide="todo" className="order-first rounded-xl border border-sky-500/40 bg-sky-500/5 p-4 xl:order-none">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-sky-100">지금 할 일</h2>
             <span className="text-[11px] text-slate-400">처음 보는 사람도 이 순서대로</span>
@@ -539,7 +541,7 @@ export default function AlarmDetail() {
         </div>
 
         <div className="space-y-4">
-          <Card title="원천별 조치 가이드" right={<SourceBadge kind={kind} />}>
+          <Card id="guide-manual" title="원천별 조치 가이드 (매뉴얼)" right={<SourceBadge kind={kind} />}>
             {kind === "외부 신호" && (
               <div className="mb-3 rounded-lg border border-violet-500/40 bg-violet-500/10 p-3 text-sm">
                 <div className="font-semibold text-violet-200">우리 설비 밖에서 온 신호입니다</div>
@@ -651,7 +653,7 @@ export default function AlarmDetail() {
           )}
 
           <div id="record" className="scroll-mt-20" />
-          <Card title="조치 기록 → 조치이력 DB">
+          <Card id="guide-record" title="조치 기록 → 조치이력 DB">
             {saved ? (
               <div className="space-y-2 text-sm">
                 <div className="rounded-md bg-emerald-500/10 p-3 text-emerald-300">{saved}</div>
@@ -674,6 +676,7 @@ export default function AlarmDetail() {
                 })}
                 onSave={async (d) => {
                   await data.addLog(d);
+                  setSavedLog({ occurredAt: d.occurredAt, action: d.action, result: d.result });
                   // 조치 기록 → 대응 상태 자동 갱신 (리셋만으로 풀리면 '후속 확인'으로 남김)
                   if (active || openWork) {
                     const base = openWork ?? draftWork(eqId, code, new Date(state!.since).toISOString());
@@ -688,7 +691,7 @@ export default function AlarmDetail() {
                   if (d.result === "해결" && active) live.recover(eqId, `${eqId} ${code} 조치 완료(${d.action}) → 가동`);
                   setSaved(
                     d.result === "해결"
-                      ? `저장했습니다. ${active ? `${eqId}가 가동으로 바뀌었습니다. ` : ""}이 기록은 다음 진단과 개선 제안에 바로 반영됩니다.`
+                      ? `저장했습니다. ${active ? `${josa(eqId, "이")} 가동으로 바뀌었습니다. ` : ""}이 기록은 다음 진단과 개선 제안에 바로 반영됩니다.`
                       : "미해결로 저장했습니다. 인수인계 메모를 복사해 다음 근무조에 넘기세요.",
                   );
                 }}

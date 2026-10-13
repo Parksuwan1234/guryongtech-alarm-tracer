@@ -85,6 +85,13 @@ export function ruleNormalize(text: string, causeOptions: string[]): Normalized 
     out.notes.push("'원인 모름' → 원인 미확인");
   }
   out.pending.push("원인 (후보에서 고르거나 직접 입력)");
-  out.action = t.split(/[.\n]/)[0].slice(0, 60);
+  // 조치 내용 칸에는 '한 일'만: '10분', '해결', '지금 정상' 같은 시간·결과 조각은 위 칸으로 갔으므로 뺌
+  const first = t.split(/[.\n]/)[0];
+  const FILLER = /^(\d+\s*분(\s*(걸림|걸렸음|소요))?|(지금\s*)?(정상|해결|해결됨|미해결)|재가동(\s*후)?(\s*정상)?)$/;
+  const kept = first
+    .split(/\s*,\s*/)
+    .map((x) => x.trim())
+    .filter((x) => x && !FILLER.test(x));
+  out.action = (kept.length ? kept.join(", ") : first).slice(0, 60);
   return out;
 }

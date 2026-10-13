@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { TraceNode, WhyNotResult } from "@/lib/ladder";
 import { SourceBadge } from "./ui";
+import { josa } from "@/lib/ko";
 
 function valueText(n: { device: string; value: number; compare: TraceNode["compare"] }): string {
   if (n.compare) return `${n.value}`;
@@ -87,7 +88,7 @@ export function WhyNotView({ r, equipmentId }: { r: WhyNotResult; equipmentId?: 
             </span>
             <span className="text-slate-400">
               {" "}
-              — {r.target}({r.targetComment})가 꺼져 있어 설비가 돌지 않습니다.
+              — {josa(`${r.target}(${r.targetComment})`, "이")} 꺼져 있어 설비가 돌지 않습니다.
             </span>
           </>
         )}

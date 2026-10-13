@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AlarmToast } from "@/components/AlarmToast";
-import { HelpButton, HelpProvider, ViewToggle } from "@/components/Help";
+import { GuideProvider, SimButton, UsageButton } from "@/components/Guide";
+import { HelpProvider, ViewToggle } from "@/components/Help";
 import { LiveProvider, useLive } from "@/lib/live";
 import { DataProvider, useData } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
@@ -49,6 +50,7 @@ function Header() {
             return (
               <Link
                 key={n.href}
+                data-guide={`nav-${n.href}`}
                 href={n.href}
                 className={`relative rounded-md px-3 py-1.5 text-sm transition ${active ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"}`}
               >
@@ -64,7 +66,8 @@ function Header() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2 text-xs">
-          <HelpButton />
+          <SimButton />
+          <UsageButton />
           <ViewToggle />
           <span
             title={data.config.db === "supabase" ? "조치이력을 Supabase DB에 저장합니다" : "DB 키가 없어 이 브라우저에 저장합니다(공개 시연 모드)"}
@@ -97,6 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <DataProvider>
       <LiveProvider>
         <HelpProvider>
+          <GuideProvider>
           <Header />
           <AlarmToast />
           <main className="mx-auto max-w-[1600px] px-4 py-4">
@@ -104,8 +108,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </main>
           <footer className="no-print mx-auto max-w-[1600px] px-4 pb-6 pt-2 text-[11px] text-slate-400">
             모든 설비·래더·조치이력은 시연용 가상 데이터입니다. 래더 추적과 개선 제안은 코드가 계산하며(같은 입력 = 같은 결과), 이 도구는 PLC에 쓰지 않습니다. ·
-            팀 익스플래닛 · GEW KOREA 2026 기업가정신 챌린지 · {APP_VERSION}
+            팀 구룡테크 · GEW KOREA 2026 기업가정신 챌린지 · {APP_VERSION}
           </footer>
+          </GuideProvider>
         </HelpProvider>
       </LiveProvider>
     </DataProvider>

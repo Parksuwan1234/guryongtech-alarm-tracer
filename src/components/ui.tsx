@@ -101,11 +101,11 @@ export function Card({
   id?: string;
 }) {
   return (
-    <section id={id} className={`rounded-xl border border-slate-800 bg-slate-900/60 ${className}`}>
+    <section id={id} className={`scroll-mt-24 rounded-xl border border-slate-800 bg-slate-900/60 ${className}`}>
       {(title || right) && (
-        <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 px-4 py-2.5">
           <h2 className="text-sm font-semibold text-slate-200">{title}</h2>
-          <div className="ml-auto">{right}</div>
+          <div className="ml-auto min-w-0 max-w-full">{right}</div>
         </div>
       )}
       <div className={bodyClass}>{children}</div>
@@ -359,12 +359,31 @@ export const inputCls =
   "w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none";
 
 export function copyText(text: string): Promise<boolean> {
+  // 카카오톡 같은 앱 안 브라우저에는 clipboard API가 없을 수 있어, 숨긴 입력칸으로 한 번 더 시도
+  const fallback = () => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  };
   try {
-    return navigator.clipboard.writeText(text).then(
-      () => true,
-      () => false,
-    );
+    if (navigator.clipboard?.writeText)
+      return navigator.clipboard.writeText(text).then(
+        () => true,
+        () => fallback(),
+      );
   } catch {
-    return Promise.resolve(false);
+    /* 아래 대체 방식 */
   }
+  return Promise.resolve(fallback());
 }

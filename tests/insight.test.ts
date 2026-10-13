@@ -177,3 +177,18 @@ describe("호기별 분포", () => {
     expect(b.outliers.map((r) => r.unit)).toEqual(["NT-02"]);
   });
 });
+
+describe("조사: 숫자·영문으로 끝나는 설비·디바이스 이름", () => {
+  it("읽는 소리의 받침을 따른다", () => {
+    expect(josa("ST-01", "이")).toBe("ST-01이");
+    expect(josa("NT-02", "이")).toBe("NT-02가");
+    expect(josa("X243", "을")).toBe("X243을");
+    expect(josa("W-2502", "이")).toBe("W-2502가");
+    expect(josa("M650", "을")).toBe("M650을");
+    expect(josa("STACK_V1_ST01", "을")).toBe("STACK_V1_ST01을");
+    expect(josa("ON", "이")).toBe("ON이");
+    expect(josa("OFF(평상시 ON)", "이")).toBe("OFF(평상시 ON)가");
+    expect(josa("X1A3", "으로")).toBe("X1A3으로");
+    expect(josa("ST-01", "으로")).toBe("ST-01로");
+  });
+});

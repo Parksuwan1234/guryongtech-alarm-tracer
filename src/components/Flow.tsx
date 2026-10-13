@@ -252,6 +252,7 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
           return (
             <Fragment key={s.device}>
               <li
+                data-guide={active ? "seq-now" : undefined}
                 className={`relative rounded-lg border px-3 py-2 ${
                   active ? "border-sky-400 bg-sky-500/10 ring-1 ring-sky-400/60" : "border-slate-700 bg-slate-900/70"
                 }`}
@@ -289,8 +290,12 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
                 })}
               </li>
               {toNext && (
-                <li className="flex gap-3 py-1 pl-5" aria-label={`${i + 1}단계에서 ${i + 2}단계로 넘어가는 조건`}>
-                  <div className={`w-0.5 shrink-0 ${liveNext && !liveNext.ready ? "bg-amber-400" : "bg-slate-600"}`} />
+                <li
+                  data-guide={liveNext && liveNext.ready === false ? "seq-wait" : undefined}
+                  className="flex gap-3 py-1 pl-5"
+                  aria-label={`${i + 1}단계에서 ${i + 2}단계로 넘어가는 조건`}
+                >
+                  <div className={`w-0.5 shrink-0 ${liveNext && liveNext.ready === false ? "bg-amber-400" : "bg-slate-600"}`} />
                   <div className="min-w-0 py-1 text-xs">
                     <div className="mb-1 text-[11px] text-slate-400">
                       ↓ 넘어가는 조건{toNext.complex ? " (그리고·또는 섞임 — 래더에서 순서 확인)" : toNext.conditions.length > 1 ? " (모두)" : ""}
@@ -320,7 +325,7 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
                         );
                       })}
                     </div>
-                    {liveNext && !liveNext.ready && (
+                    {liveNext && liveNext.ready === false && (
                       <div className="mt-1 text-[11px] text-amber-200">
                         여기서 다음 단계로 못 넘어갔습니다
                         {liveNext.conditions
