@@ -1,0 +1,37 @@
+{
+  "name": "alarm-tracer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PLC 래더 기반 설비 알람 원인 추적 대시보드 (기업가정신 챌린지 시제품)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "samples": "tsx scripts/export-samples.ts",
+    "seed-sql": "tsx scripts/export-seed-sql.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@fontsource/ibm-plex-sans-kr": "^5.3.0",
+    "@fontsource/noto-sans-kr": "^5.3.1",
+    "@supabase/supabase-js": "^2.117.3",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "2.1.9"
+  }
+}

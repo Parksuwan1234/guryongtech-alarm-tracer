@@ -1,0 +1,717 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { ActionForm, emptyDraft } from "@/components/ActionForm";
+import { AlarmFlow, SequenceFlow } from "@/components/Flow";
+import { TraceTree } from "@/components/Trace";
+import { ExpertOnly, Term } from "@/components/Help";
+import { WorkPanel } from "@/components/WorkPanel";
+import { Btn, Card, EvidenceTag, HBars, LevelBadge, ProtectBadge, SOURCE_META, SourceBadge, StatusBadge, copyText } from "@/components/ui";
+import { EQUIPMENT_BY_ID, PROCESS_LABEL } from "@/data/equipment";
+import { manualsFor } from "@/data/manuals";
+import { ALARM_SCENARIO_VALUES, RUN_VALUES } from "@/data/programs";
+import { REPEAT_THRESHOLD, causeStats, fleetSpread, fmtDate, repeatCount, since } from "@/lib/analytics";
+import { explainLines, ruleExplain } from "@/lib/explain";
+import { buildRungs, formatRow, programRev, traceAlarm } from "@/lib/ladder";
+import { elapsed, useLive } from "@/lib/live";
+import { KIND_LABEL } from "@/lib/propose";
+import { detectSequences, sequencePosition, sequencesForAlarm } from "@/lib/sequence";
+import { useData } from "@/lib/store";
+import { josa, withWa } from "@/lib/ko";
+import { draftWork, openWorkFor, statusAfterLog } from "@/lib/work";
+
+export default function AlarmDetail() {
+  const params = useParams<{ eq: string; code: string }>();
+  const eqId = decodeURIComponent(params.eq);
+  const code = decodeURIComponent(params.code);
+  const router = useRouter();
+  const data = useData();
+  const live = useLive();
+  const eq = EQUIPMENT_BY_ID.get(eqId);
+  const prog = data.programOf(eqId);
+  const state = live.equips[eqId];
+  const active = state?.alarm?.code === code;
+  const values = useMemo(() => (active ? state!.values : { ...RUN_VALUES, ...(ALARM_SCENARIO_VALUES[code] ?? {}) }), [active, state, code]);
+  const trace = useMemo(() => (prog ? traceAlarm(prog, code, values) : null), [prog, code, values]);
+  // 순차 동작(시퀀스)을 거쳐 켜지는 알람이면, 알람 순간 어느 단계에서 무엇을 기다렸는지
+  const seqs = useMemo(() => (prog ? sequencesForAlarm(detectSequences(prog), code) : []), [prog, code]);
+  const seqPos = useMemo(() => (prog ? seqs.map((s) => ({ seq: s, pos: sequencePosition(prog, s, values) })) : []), [prog, seqs, values]);
+  const [traceView, setTraceView] = useState<"flow" | "list">("flow");
+
+  const units = useMemo(
+    () =>
+      Object.entries(data.assignment)
+        .filter(([, p]) => p === prog?.id)
+        .map(([e]) => e)
+        .sort(),
+    [data.assignment, prog],
+  );
+  const recent = useMemo(() => since(data.logs, 90), [data.logs]);
+  const alarmLogs = useMemo(() => recent.filter((l) => l.alarmCode === code && units.includes(l.equipmentId)), [recent, code, units]);
+  const causes = useMemo(() => causeStats(alarmLogs), [alarmLogs]);
+  const spread = useMemo(() => fleetSpread(recent, code, units), [recent, code, units]);
+  const thisUnit = alarmLogs.filter((l) => l.equipmentId === eqId);
+  const related = data.proposals.filter((p) => p.alarmCode === code && p.programId === prog?.id);
+
+  const sourceDevices = trace?.culprits.length ? trace.culprits.map((c) => c.device) : (trace?.leaves.map((l) => l.device) ?? []);
+  const manuals = useMemo(() => {
+    if (!prog) return [];
+    const list = sourceDevices.flatMap((d) => manualsFor(prog.id, code, d));
+    return Array.from(new Map(list.map((m) => [m.id, m])).values());
+  }, [prog, code, sourceDevices.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const spreadText =
+    spread.verdict === "single"
+      ? `${units.length}대 중 ${spread.top.unit}에 ${spread.top.count}/${spread.total}건 집중 → 설비 고유 문제 가능성`
+      : spread.verdict === "common"
+        ? `${units.length}대 중 ${spread.affected}대에서 발생 → 래더·레시피 공통 문제 가능성`
+        : spread.total
+          ? `${units.length}대 중 ${spread.affected}대에서 ${spread.total}건`
+          : "";
+
+  const [manualIdx, setManualIdx] = useState(0);
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [safety, setSafety] = useState(false);
+  const [ai, setAi] = useState<{ text: string; model?: string; masked?: number } | null>(null);
+  const [aiState, setAiState] = useState<"idle" | "loading" | "none">("idle");
+  const [saved, setSaved] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const rule = trace ? ruleExplain(trace, manuals, causes, spreadText, related) : "";
+  const lines = trace && eq ? explainLines(eq, trace, manuals, causes, spreadText, related) : [];
+
+  useEffect(() => {
+    setAi(null);
+    setAiState("idle");
+  }, [eqId, code]);
+
+  async function askAi() {
+    setAiState("loading");
+    try {
+      const res = await fetch("/api/explain", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lines }) });
+      if (res.status === 200) {
+        setAi(await res.json());
+        setAiState("idle");
+      } else setAiState("none");
+    } catch {
+      setAiState("none");
+    }
+  }
+
+  useEffect(() => {
+    if (data.config.ai && trace && aiState === "idle" && !ai) askAi();
+  }, [data.config.ai, trace]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!eq || !prog) return <div className="text-slate-400">설비를 찾을 수 없습니다.</div>;
+  if (!trace)
+    return (
+      <div className="text-slate-400">
+        {prog.id}에 알람 {code}가 없습니다.
+      </div>
+    );
+
+  const rungs = buildRungs(prog.rows);
+  const stepSet = new Set(trace.rungSteps);
+  const culpritSet = new Set(trace.culprits.map((c) => c.device));
+  const pathRows = prog.rows.filter((r) => stepSet.has(r.step));
+  const manual = manuals[manualIdx];
+  const kind = trace.primarySource;
+  const openWork = openWorkFor(data.work, eqId, code);
+  // 근거 데이터의 출처: 어떤 시점의 값과 어떤 래더 버전으로 판단했는가
+  const srcProg = data.programs.find((p) => p.id === prog.id);
+  const rev = srcProg ? programRev(srcProg) : "-";
+  const pathDevices = Array.from(new Set(trace.leaves.map((l) => l.device)));
+  const missing = pathDevices.filter((d) => !(d in values));
+  const c0 = trace.culprits[0];
+  const where = c0 ? (prog.devices.get(c0.device)?.where ?? "") : "";
+  const normalOf = (d: string) => prog.devices.get(d)?.normal;
+  const tm0 = trace.timersInPath[0];
+  const seqLeaf = trace.leaves.find((l) => l.sequence);
+  const factText = c0
+    ? c0.compare
+      ? `${c0.comment} 값이 ${c0.value}로 기준(${c0.compare.op} ${c0.compare.value})을 넘어, 스텝 ${c0.step}의 조건이 성립했고 ${trace.alarm.device}(알람)이 켜졌습니다.`
+      : `${c0.comment}(${c0.device})가 ${c0.value ? "ON" : "OFF"}${normalOf(c0.device) != null ? `(평상시 ${normalOf(c0.device) ? "ON" : "OFF"})` : ""}이 되어, 스텝 ${c0.step}의 조건이 성립했고 ${trace.alarm.device}(알람)이 켜졌습니다.`
+    : tm0 && seqLeaf
+      ? `${tm0.device} 타이머(${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초) 판정으로 알람이 켜졌고, 추적은 ${josa(`${seqLeaf.device} ${seqLeaf.comment}`, "을")} 거쳐 순차 동작(${seqs[0]?.title ?? seqLeaf.sequence})으로 이어집니다. 센서 정상을 증명한 것은 아닙니다.`
+      : tm0
+      ? `${tm0.device} 타이머(${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초) 판정으로 알람이 켜졌고, 추적은 래더 내부 조건(${trace.leaves.map((l) => l.device).join(", ")})에서 끝났습니다. 센서 정상을 증명한 것은 아닙니다.`
+      : `추적이 래더 내부 조건(${trace.leaves.map((l) => l.device).join(", ")})에서 끝났습니다. 센서 정상을 증명한 것은 아닙니다.`;
+  const stuck = seqPos
+    .flatMap(({ seq, pos }) => pos.active.map((a) => ({ seq, a, wait: a.next.flatMap((n) => n.conditions.filter((c) => !c.ok)) })))
+    .find((x) => x.wait.length);
+  const seqNote = stuck
+    ? `알람 순간 순차 동작은 '${stuck.a.step.label}' 단계였고, 다음 단계로 넘어갈 조건 ${josa(stuck.wait.map((c) => `${c.device} ${c.comment}`).join(", "), "을")} 기다리고 있었습니다(지금 ${stuck.wait.map((c) => (c.value ? "ON" : "OFF")).join(", ")}).`
+    : "";
+  const nonReset = causes.filter((x) => x.actionType !== "리셋");
+  const best = nonReset.find((x) => x.tries >= 3) ?? nonReset[0];
+  const todo: { title: string; body: string; note?: string; warn?: boolean }[] = [
+    {
+      title: "안전 먼저",
+      body: manual && manual.safety !== "-" ? manual.safety : "설비가 멈춘 상태인지 확인하고 기본 보호구를 착용하세요.",
+      note: trace.alarm.protect === "안전" ? "안전 구분 알람 — 원인 확인 전 리셋·재가동 금지" : undefined,
+      warn: true,
+    },
+    kind === "외부 신호"
+      ? {
+          title: "신호 경계 공동 확인",
+          body: `우리 쪽 수신값(${c0?.device ?? "-"})·통신 상태를 확인하고, ${withWa(c0?.checkWith || "신호를 보내는 부서")} ${c0?.comment ?? "신호"} 상태를 함께 점검하세요.`,
+          note: "우리 설비 밖에서 온 신호입니다. 송신 측 고장으로 단정하지 말고, 우리 래더를 바꿔 숨기지도 않습니다.",
+        }
+      : kind === "래더 로직"
+        ? {
+            title: "PLC 담당과 조건·순서·설정 확인",
+            body: stuck
+              ? `알람 순간 '${stuck.a.step.label}' 단계에서 ${josa(stuck.wait.map((c) => `${c.device} ${c.comment}`).join(", "), "을")} 기다리고 있었습니다.${stuck.wait[0].where ? ` 먼저 ${stuck.wait[0].where}를 보고,` : ""} 단계 순서와 ${tm0 ? `${tm0.device} 타이머 ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step}) 설정값을` : "조건을"} PLC 담당과 함께 확인하세요.`
+              : `추적이 멈춘 ${trace.leaves.map((l) => l.device).join(", ")} 조건과 동작 순서${tm0 ? `, ${tm0.device} 타이머 ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step}) 설정값` : ""}을 PLC 담당과 함께 확인하세요.`,
+            note: stuck
+              ? "알람 순간 진행 중이던 단계입니다. 그 단계가 이번에 느려졌는지는 단계별 걸린 시간이 있어야 압니다(미수집)."
+              : "래더 내부에서 추적이 끝났다는 뜻이지, 타이머 문제나 센서 정상으로 확정된 것은 아닙니다.",
+          }
+        : {
+            title: "먼저 볼 곳",
+            body: `${where || c0?.comment || "원천 센서"}${manual ? ` — ${manual.steps[0]}` : ""}`,
+            note: c0 ? `래더 주소 ${c0.device} · ${c0.comment}` : undefined,
+          },
+    best
+      ? {
+          title: "비슷한 과거 건에서 해결 기록이 있는 조치",
+          body: `${best.action} — 기록 ${best.tries}건 중 해결 ${best.resolved}건, 평균 ${Math.round(best.avgMin)}분`,
+          note: `${best.tries <= 2 ? "표본 적음 · 참고만 하세요" : "참고 순서이며, 이번에도 맞는 원인이라는 보장은 아닙니다"} · 마지막 ${best.lastAt ? fmtDate(best.lastAt, false) : "-"}`,
+        }
+      : { title: "과거 기록 없음", body: "아래 매뉴얼 순서대로 점검하세요. 이번 기록이 첫 근거가 됩니다." },
+  ];
+
+  const handover = [
+    `[인수인계] ${eq.id} ${eq.name} — [${trace.alarm.level}알람] ${code} ${trace.alarm.name}`,
+    `· 발생: ${active ? `${fmtDate(state!.since)} (${elapsed(state!.since, live.now)} 경과)` : "-"}`,
+    `· 래더 추적: ${trace.alarm.device} ← ${trace.culprits.map((c) => `${c.device}(${c.comment})`).join(", ") || "래더 로직(타이머 판정)"} [${kind}]`,
+    manual ? `· 진행한 조치: ${manual.steps.filter((s) => checked[s]).join(" → ") || "아직 없음"}` : "",
+    causes[0] ? `· 과거 해결 사례: ${causes[0].action} (해결 ${causes[0].resolved}/${causes[0].tries})` : "",
+    related[0] ? `· 재발 방지안: ${related[0].title}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={() => router.back()} className="text-sm text-slate-400 hover:text-slate-200">
+          ← 뒤로
+        </button>
+        <LevelBadge level={trace.alarm.level} />
+        <ProtectBadge protect={trace.alarm.protect} />
+        {repeatCount(data.logs, eqId, code, 7, live.now) >= REPEAT_THRESHOLD && (
+          <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[11px] text-violet-200">
+            <Term k="반복 알람">반복 의심</Term> · 최근 7일 조치 기록 {repeatCount(data.logs, eqId, code, 7, live.now)}건
+          </span>
+        )}
+        <h1 className="text-xl font-semibold">
+          <span className="mono">{code}</span> {trace.alarm.name}
+        </h1>
+        <span className="text-slate-400">
+          <Link href={`/equipment/${eq.id}`} className="mono hover:text-slate-200">
+            {eq.id}
+          </Link>{" "}
+          {eq.name} · {PROCESS_LABEL[eq.process]} · <span className="mono">{prog.id}</span>
+        </span>
+        <span className="ml-auto text-sm">
+          {active ? (
+            <span className="flex items-center gap-2">
+              <StatusBadge status="ALARM" level={trace.alarm.level} /> {elapsed(state!.since, live.now)} 경과
+            </span>
+          ) : (
+            <span className="text-slate-400">지금은 발생 중이 아님 · 대표 시나리오 값으로 추적</span>
+          )}
+        </span>
+      </div>
+
+      {/* 결론: 확인된 사실 / 원인 후보 / 지금 할 일을 나눠서 — 문단 하나에 섞지 않음 */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <div className={`rounded-xl border p-4 ${kind ? SOURCE_META[kind].border : "border-slate-700"} bg-slate-900/70`}>
+          <div className="flex flex-wrap items-center gap-2 text-lg">
+            <span className="text-slate-400">
+              <Term k="알람 성립 원인" />
+            </span>
+            <SourceBadge kind={kind} className="text-sm" />
+            {trace.culprits.map((c) => (
+              <span key={c.device} className="flex items-center gap-1.5">
+                <span className="mono font-semibold text-fuchsia-300">{c.device}</span>
+                <span>{c.comment}</span>
+                <span className="mono rounded bg-fuchsia-500/20 px-1.5 text-sm text-fuchsia-200">{c.compare ? c.value : c.value ? "ON" : "OFF"}</span>
+              </span>
+            ))}
+            {!trace.culprits.length && trace.timersInPath[0] && (
+              <span>
+                타이머 <span className="mono">{trace.timersInPath[0].device}</span> {trace.timersInPath[0].setValue} 판정{" "}
+                {seqLeaf ? "(추적이 순차 동작으로 이어짐)" : "(추적이 래더 내부 조건에서 끝남)"}
+              </span>
+            )}
+          </div>
+          <dl className="mt-3 space-y-2 text-sm">
+            <div className="grid grid-cols-[92px_1fr] gap-2">
+              <dt className="text-slate-400">확인된 사실</dt>
+              <dd className="text-slate-200">{factText}</dd>
+            </div>
+            {seqNote && (
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <dt className="text-slate-400">순차 동작</dt>
+                <dd className="text-slate-200">
+                  {seqNote}{" "}
+                  <a href="#sequence" className="text-sky-300 underline-offset-2 hover:underline">
+                    흐름도 보기 ↓
+                  </a>
+                </dd>
+              </div>
+            )}
+            {where && (
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <dt className="text-slate-400">현장 위치</dt>
+                <dd className="text-slate-200">{where}</dd>
+              </div>
+            )}
+            <div className="grid grid-cols-[92px_1fr] gap-2">
+              <dt className="text-slate-400">원인 후보</dt>
+              <dd className="text-slate-300">
+                {manual ? (
+                  <>
+                    <b className="text-slate-100">{manual.cause}</b> (매뉴얼 {manual.id})
+                  </>
+                ) : (
+                  "매뉴얼 항목 없음"
+                )}
+                {best && (
+                  <>
+                    {" "}
+                    · 비슷한 과거 건에서 &lsquo;{best.action}&rsquo; 해결 기록 {best.resolved}/{best.tries} <EvidenceTag n={best.tries} />
+                  </>
+                )}
+              </dd>
+            </div>
+            {spreadText && (
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <dt className="text-slate-400">설비군 비교</dt>
+                <dd className="text-slate-300">{spreadText}</dd>
+              </div>
+            )}
+            {ai?.text && (
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <dt className="text-violet-300">쉬운 말 (AI)</dt>
+                <dd className="text-slate-200">{ai.text}</dd>
+              </div>
+            )}
+          </dl>
+          <p className="mt-3 text-xs text-slate-400">
+            래더가 확인해 주는 것은 &lsquo;어떤 조건이 이 알람을 켰는가&rsquo;까지입니다({active ? "알람 발생 순간 값" : "대표 시나리오 값"} 기준 —{" "}
+            <Term k="자기유지" /> 알람은 지금 값이 아닌 발생 순간 값으로 추적). 그 조건 뒤의 물리 원인은 매뉴얼과 과거 조치가 후보로 제시합니다.
+          </p>
+          <div className="mt-2 rounded-md bg-black/20 px-2 py-1.5 text-[11px] text-slate-400">
+            근거 데이터: {active ? `발생 순간 스냅샷 ${fmtDate(state!.since)}` : "대표 시나리오 값(지금 발생 중 아님)"} · 래더 {prog.id} (
+            {srcProg?.builtIn ? "기본 제공" : `업로드 ${srcProg?.uploadedAt ? fmtDate(srcProg.uploadedAt, false) : ""}`} · 래더 파일 지문 {rev}) · 추적에 쓴
+            신호값 {pathDevices.length - missing.length}/{pathDevices.length} 확보 — 물리 원인은 현장 확인
+            {missing.length > 0 && <span className="text-amber-200"> · 확인 필요: {missing.join(", ")} 값 없음</span>}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+            {ai ? (
+              <span>
+                AI 설명 ({ai.model}) · 민감 값 {ai.masked ?? 0}개 가림 · 원인 판단은 래더 추적 결과 그대로
+              </span>
+            ) : (
+              <span>규칙 기반 설명 (래더 추적 + 조치이력 DB). AI 키가 없어도 같은 결론을 보여줍니다.</span>
+            )}
+            {data.config.ai && (
+              <button onClick={askAi} className="text-violet-300 hover:underline" disabled={aiState === "loading"}>
+                {aiState === "loading" ? "AI 설명 작성 중…" : "AI로 다시 설명"}
+              </button>
+            )}
+            <details>
+              <summary className="cursor-pointer">한 문단 설명 보기</summary>
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-300">{rule}</p>
+            </details>
+            <details>
+              <summary className="cursor-pointer">AI에 보내는 내용 보기</summary>
+              <pre className="mono mt-1 whitespace-pre-wrap rounded bg-black/40 p-2 text-[11px] text-slate-400">{lines.join("\n")}</pre>
+            </details>
+          </div>
+        </div>
+
+        <div className="order-first rounded-xl border border-sky-500/40 bg-sky-500/5 p-4 xl:order-none">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-sky-100">지금 할 일</h2>
+            <span className="text-[11px] text-slate-400">처음 보는 사람도 이 순서대로</span>
+          </div>
+          <ol className="mt-3 space-y-2">
+            {todo.map((t, i) => (
+              <li key={t.title} className={`flex gap-3 rounded-lg p-2.5 ${t.warn ? "border border-amber-500/50 bg-amber-500/10" : "bg-slate-900/70"}`}>
+                <span
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${t.warn ? "bg-amber-400 text-black" : "bg-sky-700 text-white"}`}
+                >
+                  {i + 1}
+                </span>
+                <span className="min-w-0 text-sm">
+                  <b className="text-slate-100">{t.title}</b>
+                  <span className="mt-0.5 block text-slate-300">{t.body}</span>
+                  {t.note && <span className="mt-0.5 block text-xs text-slate-400">{t.note}</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <a href="#record" className="mt-3 flex items-center justify-center rounded-md bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800">
+            조치 끝나면 기록하기 ↓
+          </a>
+        </div>
+      </div>
+
+      {(active || openWork) && (
+        <WorkPanel
+          equipmentId={eqId}
+          alarmCode={code}
+          startedAt={active ? new Date(state!.since).toISOString() : openWork!.startedAt}
+          active={active}
+          now={live.now}
+          suggestOwner={manual?.owner}
+        />
+      )}
+
+      <Card
+        title={traceView === "flow" ? "알람이 켜지는 흐름도" : "래더 역추적 경로"}
+        right={
+          <div className="flex items-center gap-2">
+            <span className="hidden text-[11px] text-slate-400 sm:inline">코드 계산 · 매번 같은 결과</span>
+            <div className="flex rounded-md border border-slate-700 text-xs" role="tablist" aria-label="보기 방식">
+              {(
+                [
+                  ["flow", "흐름도"],
+                  ["list", "목록"],
+                ] as const
+              ).map(([v, l]) => (
+                <button
+                  key={v}
+                  role="tab"
+                  aria-selected={traceView === v}
+                  onClick={() => setTraceView(v)}
+                  className={`px-2 py-0.5 ${traceView === v ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+        }
+      >
+        {traceView === "flow" ? (
+          <AlarmFlow trace={trace} onSequence={() => document.getElementById("sequence")?.scrollIntoView({ behavior: "smooth" })} />
+        ) : (
+          <TraceTree node={trace.root} />
+        )}
+        <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-slate-400">
+          <span>
+            <span className="rounded bg-fuchsia-600 px-1 font-bold text-white">◎ 알람 성립 원인</span> 알람 쪽으로 성립 + 평상값과 다른 끝 접점 (알람 등급
+            색과 구분)
+          </span>
+          <span>자기유지·해제 조건·운전 상태는 원인에서 제외</span>
+        </div>
+      </Card>
+
+      {seqPos.map(({ seq, pos }) => (
+        <Card
+          key={seq.id}
+          id="sequence"
+          title={`순차 동작 흐름도 · ${seq.title}`}
+          right={<span className="text-[11px] text-slate-400">{pos.known ? "알람 순간 값으로 현재 단계 표시" : "단계 값 미수집"}</span>}
+        >
+          <SequenceFlow seq={seq} position={pos} />
+        </Card>
+      ))}
+
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <ExpertOnly label="관련 래더 표(스텝·명령·디바이스·지금 값)">
+            <Card title={`관련 래더 (스텝 ${trace.rungSteps[0]}~${trace.rungSteps[trace.rungSteps.length - 1]})`} bodyClass="p-0">
+              <table className="w-full text-sm">
+                <thead className="text-left text-[11px] text-slate-400">
+                  <tr className="border-b border-slate-800">
+                    <th className="px-3 py-1.5">스텝</th>
+                    <th>명령</th>
+                    <th>디바이스</th>
+                    <th>설정값</th>
+                    <th>코멘트</th>
+                    <th className="pr-3 text-right">지금 값</th>
+                  </tr>
+                </thead>
+                <tbody className="mono">
+                  {pathRows.map((r) => {
+                    const isOut = /^(OUT|SET|RST)$/.test(r.instr);
+                    const v = r.device in values ? values[r.device] : undefined;
+                    return (
+                      <tr
+                        key={r.step}
+                        className={`border-b border-slate-800/60 ${culpritSet.has(r.device) && !isOut ? "bg-fuchsia-500/10 text-fuchsia-200" : isOut ? "text-sky-200" : "text-slate-300"}`}
+                      >
+                        <td className="px-3 py-1 text-slate-400">{r.step}</td>
+                        <td>{r.instr}</td>
+                        <td className="font-semibold">{r.device}</td>
+                        <td>{r.setValue}</td>
+                        <td className="font-sans text-slate-400">{prog.devices.get(r.device)?.comment || r.comment}</td>
+                        <td className="pr-3 text-right">{v === undefined ? "" : r.device.startsWith("D") ? v : v ? "ON" : "OFF"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="px-3 py-2 text-[11px] text-slate-400">
+                회로 {rungs.length}개 중 이 알람과 관련된 것만 보여줍니다. 전체 래더는 PLC 프로그램 화면에서 볼 수 있습니다.
+              </div>
+            </Card>
+          </ExpertOnly>
+
+          <Card
+            title={`과거 조치 (최근 90일 · ${prog.id} ${units.length}대)`}
+            right={
+              <span className="text-[11px] text-slate-400" title="해결률을 표본 수로 보정한 값(윌슨 하한)으로 정렬 — 1/1이 5/6보다 앞서지 않음">
+                표본 수 보정 순
+              </span>
+            }
+          >
+            {causes.length ? (
+              <table className="w-full text-sm">
+                <thead className="text-left text-[11px] text-slate-400">
+                  <tr>
+                    <th className="pb-1">원인</th>
+                    <th>조치</th>
+                    <th className="text-right">해결</th>
+                    <th className="pl-2">이력</th>
+                    <th className="text-right">평균 시간</th>
+                    <th className="text-right">마지막</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {causes.slice(0, 6).map((c) => (
+                    <tr key={c.cause + c.action} className="border-t border-slate-800/60">
+                      <td className="py-1.5 pr-2">{c.cause}</td>
+                      <td className="pr-2 text-slate-300">{c.action}</td>
+                      <td
+                        className={`text-right tabular-nums ${c.resolved / c.tries >= 0.8 ? "text-emerald-300" : c.resolved / c.tries < 0.5 ? "text-red-300" : "text-amber-200"}`}
+                      >
+                        {c.resolved}/{c.tries}
+                      </td>
+                      <td className="pl-2">
+                        <EvidenceTag n={c.tries} />
+                      </td>
+                      <td className="text-right tabular-nums text-slate-400">{Math.round(c.avgMin)}분</td>
+                      <td className="text-right tabular-nums text-slate-400">{c.lastAt ? fmtDate(c.lastAt, false) : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-sm text-slate-400">아직 기록이 없습니다. 아래에서 첫 조치를 기록하세요.</div>
+            )}
+            <div className="mt-4">
+              <div className="mb-2 flex items-center gap-2 text-xs">
+                <span className="text-slate-400">설비군 비교</span>
+                <span className={spread.verdict === "single" ? "text-red-300" : spread.verdict === "common" ? "text-sky-300" : "text-slate-400"}>
+                  {spreadText || "기록 없음"}
+                </span>
+              </div>
+              <HBars
+                items={spread.counts
+                  .filter((c) => c.count > 0 || c.unit === eqId)
+                  .sort((a, b) => b.count - a.count)
+                  .slice(0, 12)
+                  .map((c) => ({
+                    label: (
+                      <span className={`mono ${c.unit === eqId ? "text-white" : ""}`}>
+                        {c.unit}
+                        {c.unit === eqId ? " (이 설비)" : ""}
+                      </span>
+                    ),
+                    value: c.count,
+                    tone: c.unit === eqId ? "bg-red-500/70" : "bg-slate-500/70",
+                  }))}
+                unit="건"
+              />
+              <div className="mt-1 text-[11px] text-slate-400">이 설비 최근 90일 {thisUnit.length}건</div>
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card title="원천별 조치 가이드" right={<SourceBadge kind={kind} />}>
+            {kind === "외부 신호" && (
+              <div className="mb-3 rounded-lg border border-violet-500/40 bg-violet-500/10 p-3 text-sm">
+                <div className="font-semibold text-violet-200">우리 설비 밖에서 온 신호입니다</div>
+                <div className="mt-1 text-slate-300">
+                  확인처: <b>{trace.culprits[0]?.checkWith || "-"}</b>. 우리 설비의 래더를 바꿔 숨기지 말고, 신호를 보내는 쪽을 먼저 확인하세요.
+                </div>
+              </div>
+            )}
+            {kind === "래더 로직" && (
+              <div className="mb-3 rounded-lg border border-teal-500/40 bg-teal-500/10 p-3 text-sm">
+                <div className="font-semibold text-teal-200">추적이 래더 내부 조건에서 끝난 알람입니다</div>
+                <div className="mt-1 text-xs text-slate-400">
+                  이 추적으로는 알람 쪽으로 성립한 현장 입력·외부 신호를 찾지 못했다는 뜻이지, 센서가 정상임을 증명한 것은 아닙니다. 추적이 멈춘 지점(
+                  {trace.leaves.map((l) => l.device).join(", ")})의 시퀀스 프로그램도 함께 확인하세요.
+                </div>
+                <div className="mt-1 text-slate-300">
+                  {trace.timersInPath.map((t) => `${t.device} ${t.setValue}(${(Number(t.setValue.slice(1)) / 10).toFixed(1)}초, 스텝 ${t.step})`).join(", ")}{" "}
+                  설정이 현재 공정 속도에 맞는지 아래 DB 개선 제안을 확인하세요. 래더 변경은 PLC 담당 검토 후 반영합니다.
+                </div>
+              </div>
+            )}
+            {manuals.length > 1 && (
+              <div className="mb-2 flex flex-wrap gap-1">
+                {manuals.map((m, i) => {
+                  const hist = causes.find((c) => c.cause === m.cause);
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setManualIdx(i);
+                        setChecked({});
+                      }}
+                      className={`rounded-md border px-2 py-1 text-xs ${i === manualIdx ? "border-sky-500 bg-sky-500/15 text-sky-200" : "border-slate-700 text-slate-400"}`}
+                    >
+                      {m.cause}
+                      {hist && (
+                        <span className="ml-1 text-slate-400">
+                          (이력 {hist.resolved}/{hist.tries})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {manual ? (
+              <div>
+                <div className="mb-2 text-sm">
+                  <span className="text-slate-400">원인 후보:</span> <b>{manual.cause}</b>{" "}
+                  <span className="text-xs text-slate-400">
+                    ({manual.id} · 담당 {manual.owner} · 원천 <span className="mono">{manual.sourceDevice}</span>)
+                  </span>
+                </div>
+                <label
+                  className={`mb-2 flex items-start gap-2 rounded-md border p-2 text-sm ${safety ? "border-emerald-600/50 bg-emerald-500/5" : "border-amber-500/50 bg-amber-500/10"}`}
+                >
+                  <input type="checkbox" checked={safety} onChange={(e) => setSafety(e.target.checked)} className="mt-1" />
+                  <span>
+                    <b className="text-amber-200">안전 확인</b> — {manual.safety === "-" ? "별도 안전 조치 없음 · 기본 보호구 착용 확인" : manual.safety}
+                  </span>
+                </label>
+                <ol className="space-y-1">
+                  {manual.steps.map((s, i) => (
+                    <li key={s}>
+                      <label
+                        className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${!safety ? "opacity-50" : ""} ${checked[s] ? "bg-emerald-500/10 text-emerald-200" : "bg-slate-800/50"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!safety}
+                          checked={!!checked[s]}
+                          onChange={(e) => setChecked((c) => ({ ...c, [s]: e.target.checked }))}
+                        />
+                        <span className="w-5 text-slate-400">{i + 1}</span>
+                        {s}
+                      </label>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-400">이 원천에 대한 매뉴얼 항목이 없습니다. 조치 후 기록하면 매뉴얼 보강 제안에 반영됩니다.</div>
+            )}
+          </Card>
+
+          {related.length > 0 && (
+            <Card title="DB가 제안하는 재발 방지" right={<span className="text-[11px] text-slate-400">조치이력 분석</span>}>
+              <ul className="space-y-2">
+                {related.map((p) => (
+                  <li key={p.id}>
+                    <Link
+                      href={`/improve#${encodeURIComponent(p.id)}`}
+                      className="block rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 hover:bg-sky-600/10"
+                    >
+                      <div className="text-[11px] text-sky-300">{KIND_LABEL[p.kind]}</div>
+                      <div className="text-sm font-medium">{p.title}</div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {p.effect.avoided > 0
+                          ? `과거 ${p.effect.total}건 중 ${p.effect.avoided}건 ${p.kind === "pm" ? "계획 정비로 전환" : p.kind === "unit" || p.kind === "inspect" ? "근본 조치 시 최대" : "억제"} 추정 · `
+                          : ""}
+                        연 {Math.round(p.effect.perYearMin / 60)}
+                        시간 정지 감소 추정
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          <div id="record" className="scroll-mt-20" />
+          <Card title="조치 기록 → 조치이력 DB">
+            {saved ? (
+              <div className="space-y-2 text-sm">
+                <div className="rounded-md bg-emerald-500/10 p-3 text-emerald-300">{saved}</div>
+                <Btn onClick={() => setSaved(null)}>하나 더 기록</Btn>
+              </div>
+            ) : (
+              <ActionForm
+                key={`${eqId}-${code}-${manualIdx}`}
+                lockEquipment
+                submitLabel="기록 저장"
+                initial={emptyDraft({
+                  equipmentId: eqId,
+                  alarmCode: code,
+                  sourceDevice: trace.culprits[0]?.device ?? manual?.sourceDevice ?? "",
+                  cause: manual?.cause ?? "",
+                  action: manual ? manual.steps.filter((s) => checked[s]).join(", ") : "",
+                  actionType: kind === "외부 신호" ? "외부 확인" : "점검·조정",
+                  durationMin: active ? Math.max(1, Math.round((live.now - state!.since) / 60000)) : 10,
+                  occurredAt: active ? new Date(state!.since).toISOString() : new Date().toISOString(),
+                })}
+                onSave={async (d) => {
+                  await data.addLog(d);
+                  // 조치 기록 → 대응 상태 자동 갱신 (리셋만으로 풀리면 '후속 확인'으로 남김)
+                  if (active || openWork) {
+                    const base = openWork ?? draftWork(eqId, code, new Date(state!.since).toISOString());
+                    const next = statusAfterLog(d);
+                    await data
+                      .saveWork(
+                        { ...base, status: next.status, owner: base.owner || d.worker || "", nextAction: next.nextAction || base.nextAction },
+                        `조치 기록 저장(${d.result}) → ${next.status}`,
+                      )
+                      .catch(() => undefined);
+                  }
+                  if (d.result === "해결" && active) live.recover(eqId, `${eqId} ${code} 조치 완료(${d.action}) → 가동`);
+                  setSaved(
+                    d.result === "해결"
+                      ? `저장했습니다. ${active ? `${eqId}가 가동으로 바뀌었습니다. ` : ""}이 기록은 다음 진단과 개선 제안에 바로 반영됩니다.`
+                      : "미해결로 저장했습니다. 인수인계 메모를 복사해 다음 근무조에 넘기세요.",
+                  );
+                }}
+              />
+            )}
+            <div className="mt-3 border-t border-slate-800 pt-3">
+              <Btn
+                tone="ghost"
+                onClick={async () => {
+                  setCopied(await copyText(handover));
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+              >
+                {copied ? "복사됨" : "인수인계 메모 복사"}
+              </Btn>
+              <pre className="mt-2 whitespace-pre-wrap rounded bg-black/30 p-2 text-[11px] text-slate-400">{handover}</pre>
+            </div>
+          </Card>
+        </div>
+      </div>
+      <div className="text-[11px] text-slate-400">
+        래더 행 {prog.rows.length}개 · 디바이스 코멘트 {prog.devices.size}개 · {formatRow(prog.rows[0]).length > 0 ? "IL 형식" : ""}
+      </div>
+    </div>
+  );
+}
