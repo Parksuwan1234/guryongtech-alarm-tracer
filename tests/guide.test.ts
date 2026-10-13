@@ -58,7 +58,7 @@ describe("시뮬레이션 안내", () => {
 });
 
 describe("안내 단계 이동 규칙", () => {
-  const ALARM = "/alarm/ST-01/W-2502";
+  const ALARM = "/alarm/NT-03/E-1105";
   it("알림을 눌러 알람 화면으로 가면 다음 단계로", () => {
     expect(stepAfterNavigate(GUIDE_STEPS, 0, "/", ALARM)).toBe(1);
   });

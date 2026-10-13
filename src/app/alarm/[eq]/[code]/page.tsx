@@ -144,11 +144,32 @@ export default function AlarmDetail() {
     .flatMap(({ seq, pos }) => pos.active.map((a) => ({ seq, a, wait: a.next.flatMap((n) => n.conditions.filter((c) => !c.ok)) })))
     .find((x) => x.wait.length);
   const seqNote = stuck
-    ? `알람 순간 순차 동작은 '${stuck.a.step.label}' 단계였고, 다음 단계로 넘어갈 조건 ${josa(stuck.wait.map((c) => `${c.device} ${c.comment}`).join(", "), "을")} 기다리고 있었습니다(지금 ${stuck.wait.map((c) => (c.value ? "ON" : "OFF")).join(", ")}).`
+    ? `알람이 울린 순간 설비는 '${stuck.a.step.label}' 단계에 있었고, 다음 단계로 넘어가는 데 필요한 신호 ${josa(stuck.wait.map((c) => `${c.device} ${c.comment}`).join(", "), "을")} 기다리고 있었습니다(지금 ${stuck.wait.map((c) => (c.value ? "켜짐" : "꺼짐")).join(", ")}).`
     : "";
+  // 처음 보는 사람용 한 문장 — 무엇 때문에 알람이 울렸나 (PLC 주소 없이)
+  const secOf = (t: { setValue: string }) => (Number(t.setValue.slice(1)) / 10).toFixed(1).replace(/\.0$/, "");
+  const quoted = (w: string, k: "을" | "이") => `'${w}'${josa(w, k).slice(w.length)}`;
+  const plain = (() => {
+    if (stuck) {
+      const w0 = stuck.wait[0];
+      const base = `'${stuck.a.step.label.replace(/^S\d+\s*/, "")}' 동작에서 ${quoted(w0.comment, "을")} 알리는 신호를 기다리는 사이`;
+      return tm0 ? `${base}, 정해 둔 감시 시간(${secOf(tm0)}초)을 넘겨 알람이 울렸습니다.` : `${base} 멈춰 알람이 울렸습니다.`;
+    }
+    if (c0) {
+      if (c0.compare) return `${quoted(c0.comment, "이")} ${josa(String(c0.value), "으로")} 기준을 넘어 알람이 울렸습니다.`;
+      const on = Boolean(c0.value);
+      const nm = normalOf(c0.device);
+      const head =
+        nm != null && Boolean(nm) !== on ? `평소 ${nm ? "켜져" : "꺼져"} 있어야 할 '${c0.comment}' 신호가` : `'${c0.comment}' 신호가`;
+      const tail = kind === "외부 신호" ? ` 우리 설비 밖${c0.checkWith ? `(${c0.checkWith})` : ""}에서 온 신호입니다.` : "";
+      return `${head} ${on ? "켜져서" : "꺼져서"} 알람이 울렸습니다.${tail}`;
+    }
+    if (tm0) return `정해 둔 감시 시간(${secOf(tm0)}초) 안에 동작이 끝나지 않아 알람이 울렸습니다.`;
+    return "";
+  })();
   const nonReset = causes.filter((x) => x.actionType !== "리셋");
   const best = nonReset.find((x) => x.tries >= 3) ?? nonReset[0];
-  const todo: { title: string; body: string; note?: string; warn?: boolean }[] = [
+  const todo: { title: string; body: string; note?: string; detail?: string; warn?: boolean }[] = [
     {
       title: "안전 먼저",
       body: manual && manual.safety !== "-" ? manual.safety : "설비가 멈춘 상태인지 확인하고 기본 보호구를 착용하세요.",
@@ -163,18 +184,21 @@ export default function AlarmDetail() {
         }
       : kind === "래더 로직"
         ? {
-            title: "PLC 담당과 조건·순서·설정 확인",
+            title: stuck ? "멈춘 곳 확인 — PLC 담당과 함께" : "설비 프로그램 조건 확인 — PLC 담당과 함께",
             body: stuck
-              ? `알람 순간 '${stuck.a.step.label}' 단계에서 ${josa(stuck.wait.map((c) => `${c.device} ${c.comment}`).join(", "), "을")} 기다리고 있었습니다.${stuck.wait[0].where ? ` 먼저 ${stuck.wait[0].where}를 보고,` : ""} 단계 순서와 ${tm0 ? `${tm0.device} 타이머 ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step}) 설정값을` : "조건을"} PLC 담당과 함께 확인하세요.`
-              : `추적이 멈춘 ${trace.leaves.map((l) => l.device).join(", ")} 조건과 동작 순서${tm0 ? `, ${tm0.device} 타이머 ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step}) 설정값` : ""}을 PLC 담당과 함께 확인하세요.`,
+              ? `먼저 ${josa(stuck.wait[0].where || `${stuck.wait[0].comment} 센서`, "이")} ${quoted(stuck.wait[0].comment, "을")} 제대로 감지하는지 보세요. 이상이 없으면 ${tm0 ? `${secOf(tm0)}초 기준과 ` : ""}동작 순서가 맞는지 PLC 담당과 확인하세요.`
+              : `알람을 켠 조건이 설비 프로그램 안에 있습니다. ${tm0 ? `${secOf(tm0)}초 기준과 ` : ""}동작 순서가 맞는지 PLC 담당과 확인하세요.`,
+            detail: stuck
+              ? `PLC 담당에게 알려 줄 것: ${stuck.a.step.label} 단계 · 기다린 신호 ${stuck.wait.map((c) => c.device).join(", ")}${tm0 ? ` · 타이머 ${tm0.device} ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step})` : ""}`
+              : `PLC 담당에게 알려 줄 것: 추적이 멈춘 곳 ${trace.leaves.map((l) => l.device).join(", ")}${tm0 ? ` · 타이머 ${tm0.device} ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step})` : ""}`,
             note: stuck
-              ? "알람 순간 진행 중이던 단계입니다. 그 단계가 이번에 느려졌는지는 단계별 걸린 시간이 있어야 압니다(미수집)."
-              : "래더 내부에서 추적이 끝났다는 뜻이지, 타이머 문제나 센서 정상으로 확정된 것은 아닙니다.",
+              ? "이 동작이 평소보다 느렸는지는 동작별 걸린 시간 기록이 아직 없어 알 수 없습니다."
+              : "센서 고장이나 타이머 문제로 확정된 것은 아닙니다.",
           }
         : {
             title: "먼저 볼 곳",
-            body: `${where || c0?.comment || "원천 센서"}${manual ? ` — ${manual.steps[0]}` : ""}`,
-            note: c0 ? `래더 주소 ${c0.device} · ${c0.comment}` : undefined,
+            body: `${josa(where || c0?.comment || "원천 센서", "을")} 먼저 확인하세요.${manual ? ` 매뉴얼 첫 단계: ${manual.steps[0]}.` : ""}`,
+            detail: c0 ? `PLC 담당에게 알려 줄 것: 신호 ${c0.device} (${c0.comment})` : undefined,
           },
     best
       ? {
@@ -252,6 +276,12 @@ export default function AlarmDetail() {
             )}
           </div>
           <dl className="mt-3 space-y-2 text-sm">
+            {plain && (
+              <div className="grid grid-cols-[92px_1fr] gap-2 rounded-md bg-sky-500/10 px-2 py-1.5">
+                <dt className="font-semibold text-sky-200">쉽게 말하면</dt>
+                <dd className="text-[15px] leading-relaxed text-slate-100">{plain}</dd>
+              </div>
+            )}
             <div className="grid grid-cols-[92px_1fr] gap-2">
               <dt className="text-slate-400">확인된 사실</dt>
               <dd className="text-slate-200">{factText}</dd>
@@ -355,6 +385,7 @@ export default function AlarmDetail() {
                   <b className="text-slate-100">{t.title}</b>
                   <span className="mt-0.5 block text-slate-300">{t.body}</span>
                   {t.note && <span className="mt-0.5 block text-xs text-slate-400">{t.note}</span>}
+                  {t.detail && <span className="mono mt-1 block text-[11px] text-slate-400">{t.detail}</span>}
                 </span>
               </li>
             ))}
@@ -377,6 +408,7 @@ export default function AlarmDetail() {
       )}
 
       <Card
+        id="trace-flow"
         title={traceView === "flow" ? "알람이 켜지는 흐름도" : "래더 역추적 경로"}
         right={
           <div className="flex items-center gap-2">
@@ -552,14 +584,15 @@ export default function AlarmDetail() {
             )}
             {kind === "래더 로직" && (
               <div className="mb-3 rounded-lg border border-teal-500/40 bg-teal-500/10 p-3 text-sm">
-                <div className="font-semibold text-teal-200">추적이 래더 내부 조건에서 끝난 알람입니다</div>
+                <div className="font-semibold text-teal-200">센서 신호가 아니라 설비 프로그램 안의 조건(시간 감시 등)이 켠 알람입니다</div>
                 <div className="mt-1 text-xs text-slate-400">
-                  이 추적으로는 알람 쪽으로 성립한 현장 입력·외부 신호를 찾지 못했다는 뜻이지, 센서가 정상임을 증명한 것은 아닙니다. 추적이 멈춘 지점(
-                  {trace.leaves.map((l) => l.device).join(", ")})의 시퀀스 프로그램도 함께 확인하세요.
+                  그렇다고 센서가 정상이라는 뜻은 아닙니다. 센서 점검과 함께, 추적이 멈춘 지점(
+                  {trace.leaves.map((l) => l.device).join(", ")})의 동작 프로그램도 PLC 담당과 확인하세요.
                 </div>
                 <div className="mt-1 text-slate-300">
-                  {trace.timersInPath.map((t) => `${t.device} ${t.setValue}(${(Number(t.setValue.slice(1)) / 10).toFixed(1)}초, 스텝 ${t.step})`).join(", ")}{" "}
-                  설정이 현재 공정 속도에 맞는지 아래 DB 개선 제안을 확인하세요. 래더 변경은 PLC 담당 검토 후 반영합니다.
+                  감시 시간 설정{" "}
+                  {trace.timersInPath.map((t) => `${t.device} ${t.setValue}(${(Number(t.setValue.slice(1)) / 10).toFixed(1)}초, 스텝 ${t.step})`).join(", ")}이
+                  지금 공정 속도에 맞는지는 아래 개선 제안에서 확인하세요. 래더 변경은 PLC 담당 검토 후 반영합니다.
                 </div>
               </div>
             )}
