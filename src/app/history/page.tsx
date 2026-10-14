@@ -44,7 +44,7 @@ function AuditView() {
   return (
     <Card
       title={`변경 기록 ${data.audit.length}건`}
-      right={<span className="text-[11px] text-slate-400">수정·삭제해도 원본이 남습니다 (감사 추적)</span>}
+      right={<span className="text-[11px] text-slate-400">고치거나 지워도 원본은 남습니다 (감사 추적)</span>}
       bodyClass="p-0"
     >
       <table className="w-full text-sm">
@@ -81,7 +81,7 @@ function AuditView() {
           {!data.audit.length && (
             <tr>
               <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
-                아직 변경이 없습니다. 기록을 추가·수정·삭제하면 여기에 남습니다.
+                아직 변경이 없습니다. 기록을 추가하거나 고치거나 지우면 여기에 남습니다.
               </td>
             </tr>
           )}
@@ -188,7 +188,7 @@ function History() {
         note: r.note ?? "",
       }));
     await data.importLogs(logs);
-    setMsg(`${logs.length}건을 가져왔습니다. 개선 제안에 바로 반영됩니다.`);
+    setMsg(`${logs.length}건을 가져왔습니다. 개선 제안에도 바로 반영됩니다.`);
   }
 
   return (
@@ -208,11 +208,11 @@ function History() {
           <Btn
             tone="ghost"
             disabled={data.config.db === "supabase"}
-            title={data.config.db === "supabase" ? "공용 DB는 관리자가 supabase/seed.sql 로 초기화합니다" : "이 브라우저의 데이터를 시연용 초기 상태로"}
+            title={data.config.db === "supabase" ? "공용 DB는 관리자가 supabase/seed.sql 로 초기화합니다" : "이 브라우저의 데이터를 시연용 처음 상태로 되돌립니다"}
             onClick={async () => {
-              if (window.confirm("조치이력·검토·업로드한 프로그램을 시연용 초기 데이터로 되돌릴까요?")) {
+              if (window.confirm("조치이력, 검토 결과, 올린 프로그램을 시연용 처음 데이터로 되돌릴까요?")) {
                 await data.resetDemo();
-                setMsg("시연용 초기 데이터로 되돌렸습니다.");
+                setMsg("시연용 처음 데이터로 되돌렸습니다.");
               }
             }}
           >
@@ -400,7 +400,7 @@ function History() {
                 if (d.id) await data.updateLog(d as ActionLog);
                 else await data.addLog(d);
                 setEditing(null);
-                setMsg(d.id ? "수정했습니다." : "추가했습니다. 개선 제안에 바로 반영됩니다.");
+                setMsg(d.id ? "수정했습니다." : "추가했습니다. 개선 제안에도 바로 반영됩니다.");
               }}
             />
           </div>

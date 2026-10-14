@@ -59,11 +59,11 @@ export function TraceTree({ node, depth = 0 }: { node: TraceNode; depth?: number
         {isLeaf && <SourceBadge kind={node.sourceKind} />}
         {node.culprit && <span className="rounded bg-fuchsia-600 px-1.5 text-[11px] font-bold text-white">◎ 알람 성립 원인</span>}
         {!muted && depth > 0 && !node.culprit && isLeaf && node.satisfied && !node.abnormal && (
-          <span className="text-[10px] text-slate-400">{node.sourceKind === "래더 로직" ? "성립 · 래더 내부 조건" : "성립(평상값)"}</span>
+          <span className="text-[10px] text-slate-400">{node.sourceKind === "래더 로직" ? "성립(래더 내부 조건)" : "성립(평상값)"}</span>
         )}
         {!muted && depth > 0 && !node.satisfied && <span className="text-[10px] text-slate-400">불성립</span>}
         {!muted && depth > 0 && node.satisfied && !node.contributing && (
-          <span className="text-[10px] text-slate-400">성립했지만 알람 경로 밖(병렬 분기 불성립)</span>
+          <span className="text-[10px] text-slate-400">성립했지만 알람을 켠 갈래는 아님</span>
         )}
         {node.step > 0 && <span className="ml-auto mono text-[10px] text-slate-400">스텝 {node.step}</span>}
       </div>
@@ -84,11 +84,11 @@ export function WhyNotView({ r, equipmentId }: { r: WhyNotResult; equipmentId?: 
         ) : (
           <>
             <span className="font-semibold text-amber-200">
-              자동운전 조건 {r.totalConditions}개 중 {failed.length}개 미충족
+              자동운전 조건 {r.totalConditions}개 중 {failed.length}개가 안 맞습니다.
             </span>
             <span className="text-slate-400">
               {" "}
-              — {josa(`${r.target}(${r.targetComment})`, "이")} 꺼져 있어 설비가 돌지 않습니다.
+              {josa(`${r.target}(${r.targetComment})`, "이")} 꺼져 있어 설비가 돌지 않습니다.
             </span>
           </>
         )}

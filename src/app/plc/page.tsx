@@ -41,13 +41,13 @@ function validate(p: PlcProgram) {
   }
   const seqs = detectSequences(parsed);
   if (seqs.length)
-    notes.push(`순차 동작 ${seqs.length}개를 찾았습니다: ${seqs.map((q) => `${q.title}${q.alarms.length ? ` → 알람 ${q.alarms.map((a) => a.code).join(", ")}` : ""}`).join(" / ")}`);
+    notes.push(`순차 동작 ${seqs.length}개를 찾았습니다: ${seqs.map((q) => `${q.title}${q.alarms.length ? `(관련 알람 ${q.alarms.map((a) => a.code).join(", ")})` : ""}`).join(" / ")}`);
   const unsupported = parsed.rows.filter((r) => !/^(LDI|LD|ANI|AND|ORI|OR)(<=|>=|<>|=|<|>)?$/.test(r.instr) && !/^(OUT|SET|RST)$/.test(r.instr));
   if (unsupported.length)
     notes.push(
       `추적하지 않는 명령 ${unsupported.length}개: ${Array.from(new Set(unsupported.map((r) => r.instr)))
         .slice(0, 6)
-        .join(", ")} — 이 명령이 낀 회로는 결과가 불완전할 수 있습니다`,
+        .join(", ")}. 이 명령이 들어간 회로는 추적이 덜 될 수 있습니다`,
     );
   const used = new Set(parsed.rows.map((r) => r.device));
   const noComment = Array.from(used).filter((d) => !parsed!.devices.has(d));
@@ -109,12 +109,13 @@ export default function PlcPage() {
       <div>
         <h1 className="text-xl font-semibold">PLC 프로그램 · 설비 연결</h1>
         <p className="mt-1 text-sm text-slate-400">
-          프로그램(래더 + 디바이스 코멘트 + 알람표)과 설비를 분리해 관리합니다. 같은 기종은 같은 프로그램을 쓰고, 개조된 설비만 다른 프로그램을 지정하면 됩니다.
-          실제 적용 때는 PLC 도구에서 내보낸 CSV를 같은 형식으로 올립니다.
+          프로그램(래더, 디바이스 코멘트, 알람표)과 설비를 따로 관리합니다. 같은 기종은 같은 프로그램을 쓰고, 개조한 설비만 다른 프로그램을 지정하면 됩니다.
+          실제로 쓸 때는 PLC 툴에서 내보낸 CSV를 같은 형식으로 올립니다.
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          추적 지원 범위: LD·LDI·AND·ANI·OR·ORI, 비교 접점(&gt;, &gt;=, &lt;, &lt;=, =, &lt;&gt;), OUT·SET·RST, 타이머(100ms), 순차 동작(단계 비트 SET/RST·자기유지 방식). 블록 명령(ANB·ORB·MPS), 펑션
-          블록, 간접 지정은 아직 추적하지 않으며 업로드할 때 따로 알려 줍니다. 제조사별 내보내기 형식은 읽는 부분만 바꿔 붙입니다.
+          추적하는 명령: LD, LDI, AND, ANI, OR, ORI, 비교 접점(&gt;, &gt;=, &lt;, &lt;=, =, &lt;&gt;), OUT, SET, RST, 타이머(100ms), 순차 동작(단계 비트
+          SET/RST 방식, 자기유지 방식). 블록 명령(ANB, ORB, MPS), 펑션 블록, 간접 지정은 아직 추적하지 않습니다. 이런 명령이 있으면 올릴 때 알려 줍니다.
+          제조사마다 다른 내보내기 형식은 읽는 부분만 바꿔 붙이면 됩니다.
         </p>
       </div>
 
@@ -127,7 +128,7 @@ export default function PlcPage() {
                 <div className="mono font-semibold">{p.id}</div>
                 <div className="text-sm text-slate-400">{p.name}</div>
                 <div className="mt-1 text-xs text-slate-400">
-                  {p.builtIn ? "기본(가상)" : `업로드 ${p.uploadedAt ? new Date(p.uploadedAt).toLocaleDateString("ko-KR") : ""}`} · 래더 {pp?.rows.length ?? 0}
+                  {p.builtIn ? "기본" : `업로드 ${p.uploadedAt ? new Date(p.uploadedAt).toLocaleDateString("ko-KR") : ""}`} · 래더 {pp?.rows.length ?? 0}
                   행 · 알람 {pp?.alarms.length ?? 0}개 · 적용 {unitsOf(p.id).length}대
                 </div>
               </button>
@@ -159,7 +160,7 @@ export default function PlcPage() {
               래더 보기 <span className="mono text-slate-400">{prog?.id}</span>
             </span>
           }
-          right={<input className={`${inputCls} w-56`} placeholder="디바이스·코멘트 검색 (예: T60)" value={q} onChange={(e) => setQ(e.target.value)} />}
+          right={<input className={`${inputCls} w-56`} placeholder="디바이스, 코멘트 검색 (예: T60)" value={q} onChange={(e) => setQ(e.target.value)} />}
           bodyClass="p-0"
         >
           <div className="grid lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -206,12 +207,12 @@ export default function PlcPage() {
                   </div>
                   {prog.devices.get(dev)?.checkWith && <div className="mt-1 text-xs text-slate-400">확인처: {prog.devices.get(dev)?.checkWith}</div>}
                   {prog.devices.get(dev)?.where && <div className="mt-1 text-xs text-slate-300">현장 위치: {prog.devices.get(dev)?.where}</div>}
-                  <div className="mt-3 text-xs text-slate-400">사용처 {usage.length}곳 (변경 영향 범위)</div>
+                  <div className="mt-3 text-xs text-slate-400">사용처 {usage.length}곳 (바꾸면 영향이 가는 곳)</div>
                   <ul className="mt-1 space-y-1">
                     {usage.map((u) => (
                       <li key={u.step + u.kind} className="rounded bg-slate-800/60 px-2 py-1 text-xs">
                         <span className="mono">스텝 {u.step}</span> · {u.kind} <span className="mono">{u.instr}</span>
-                        {u.kind === "접점" && <span className="text-slate-400"> → {u.outputDevices.join(", ")}</span>}
+                        {u.kind === "접점" && <span className="text-slate-400"> (출력 {u.outputDevices.join(", ")})</span>}
                       </li>
                     ))}
                   </ul>
@@ -227,7 +228,7 @@ export default function PlcPage() {
                   )}
                 </div>
               ) : (
-                <div className="text-slate-400">행을 누르면 그 디바이스의 코멘트·원천 구분·사용처(교차 참조)를 보여줍니다.</div>
+                <div className="text-slate-400">행을 누르면 그 디바이스의 코멘트, 원천 구분, 사용처(교차 참조)가 나옵니다.</div>
               )}
             </div>
           </div>
@@ -261,7 +262,7 @@ export default function PlcPage() {
               ))}
             </div>
             <p className="mt-2 text-[11px] text-slate-400">
-              노란 칸 = 기본과 다른 프로그램(개조 설비 등). 바꾸면 래더 추적과 개선 제안이 즉시 다시 계산됩니다.
+              노란 칸은 기본과 다른 프로그램을 쓰는 설비입니다(개조 설비 등). 바꾸면 래더 추적과 개선 제안을 바로 다시 계산합니다.
             </p>
           </Card>
 
@@ -359,20 +360,24 @@ export default function PlcPage() {
             순차 동작(시퀀스) 흐름도 <span className="mono text-slate-400">{prog?.id}</span>
           </span>
         }
-        right={<span className="text-[11px] text-slate-400">래더에서 단계 비트를 찾아 순서대로 그림 · 남이 짠 래더도 같은 방식으로 읽음</span>}
+        right={<span className="text-[11px] text-slate-400">래더에서 단계 비트를 찾아 순서대로 그립니다. 남이 짠 래더도 똑같이 읽습니다.</span>}
       >
         {seqs.length === 0 ? (
           <div className="text-sm text-slate-400">
-            이 프로그램에서는 순차 단계를 찾지 못했습니다. 지금 읽는 방식: ① 단계 비트 SET/RST(LD 지금 단계 · AND 조건 · SET 다음 단계 · RST 지금
-            단계) ② 자기유지 단계(LD 앞 단계 · AND 조건 · OR 자기 · ANI 다음 단계 · OUT 자기). 3단계 이상 이어진 것만 보며, 스텝 레지스터(MOV)·STL 방식은
-            로드맵입니다.
+            <p>이 프로그램에서는 순차 단계를 찾지 못했습니다. 지금은 아래 두 방식만 읽고, 3단계 이상 이어진 것만 봅니다.</p>
+            <ol className="mt-1 list-decimal pl-5">
+              <li>단계 비트 SET/RST: LD 지금 단계, AND 조건, SET 다음 단계, RST 지금 단계</li>
+              <li>자기유지 단계: LD 앞 단계, AND 조건, OR 자기, ANI 다음 단계, OUT 자기</li>
+            </ol>
+            <p className="mt-1">스텝 레지스터(MOV) 방식과 STL 방식은 아직 못 읽습니다. 나중에 넣을 계획입니다.</p>
           </div>
         ) : (
           <div className="space-y-6">
             {seqs.map((q) => (
               <div key={q.id}>
                 <div className="mb-2 text-sm text-slate-300">
-                  <span className="font-semibold text-slate-100">{q.title}</span> · 단계를 누르면 위 래더 표에서 그 디바이스를 찾습니다
+                  <span className="font-semibold text-slate-100">{q.title}</span>
+                  <span className="ml-2 text-slate-400">단계를 누르면 위 래더 표에서 그 디바이스를 찾습니다.</span>
                 </div>
                 <SequenceFlow seq={q} />
                 <div className="mt-2 flex flex-wrap gap-1">

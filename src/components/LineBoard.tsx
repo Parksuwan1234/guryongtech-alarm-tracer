@@ -136,7 +136,7 @@ export function LineBoard({
               <button
                 key={e.id}
                 onClick={() => onSelect(e.id)}
-                title={`${e.name} · ${tone.label}${s.status === "RUN" ? ` · 가동 시작 후 ${hms(s.since, now)}(시:분:초) · 생산 ${s.count.toLocaleString()}개(가상)` : ""}`}
+                title={`${e.name} · ${tone.label}${s.status === "RUN" ? ` · 가동 ${hms(s.since, now)}(시:분:초) · 생산 ${s.count.toLocaleString()}개` : ""}`}
                 className={`absolute flex items-center gap-2 rounded-lg px-2 text-left ring-1 transition hover:brightness-125 ${tone.bg} ${tone.ring} ${
                   heavy ? "blink-heavy" : ""
                 } ${selected === e.id ? "outline outline-2 outline-offset-2 outline-white" : ""} ${dim ? "opacity-35" : ""}`}

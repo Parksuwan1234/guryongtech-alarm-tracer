@@ -45,7 +45,8 @@ export default function ReportPage() {
     .flatMap((p) =>
       (p.schedule ?? [])
         .filter((s) => new Date(s.next).getTime() < to + 86400000)
-        .map((s) => ({ ...s, title: p.alarmName, action: p.title.split(": ")[1] ?? "" })),
+        // 예방정비 제안 제목은 "알람코드 알람이름: N일마다 조치" 형식
+        .map((s) => ({ ...s, title: p.alarmName, action: p.title.split(": ").slice(1).join(": ").replace(/^\d+일마다 /, "") })),
     )
     .slice(0, 8);
   const name = (code: string, eq: string) => data.programOf(eq)?.alarms.find((a) => a.code === code)?.name ?? "";
@@ -70,22 +71,22 @@ export default function ReportPage() {
   const lastText = (h: (typeof handoff)[number]) => {
     const ll = h.code ? lastLog(h.eq, h.code) : undefined;
     if (!ll) return "기록 없음";
-    const t = `${ll.action || ll.actionType} → ${ll.result} (${fmtDate(ll.occurredAt)})`;
-    return ll.occurredAt >= startOf(h) ? `이번 건: ${t}` : `이번 건 조치 없음 · 지난번: ${t}`;
+    const t = `${ll.action || ll.actionType} (${ll.result}, ${fmtDate(ll.occurredAt)})`;
+    return ll.occurredAt >= startOf(h) ? `이번 건: ${t}` : `이번 건 조치 없음, 지난번: ${t}`;
   };
   const [copied, setCopied] = useState(false);
 
   const text = [
     `[교대 인수인계] ${sel.label.replace(" · 현재", "")}`,
-    `■ 조치 ${logs.length}건 · 정지 ${fmtMin(downtime)} · 미해결 ${unresolved.length}건`,
-    `■ 다음 행동 (이어받을 것 ${handoff.length}건)`,
+    `■ 조치 ${logs.length}건, 정지 ${fmtMin(downtime)}, 미해결 ${unresolved.length}건`,
+    `■ 이어받을 일 ${handoff.length}건`,
     ...handoff.map((h) => {
-      return `  - ${h.eq} ${h.label}${h.live ? ` (${elapsed(h.live.since, live.now)})` : " (알람 해제)"} · ${h.w?.status ?? (h.code ? "미접수" : "-")}${h.w?.owner ? ` · 담당 ${h.w.owner}` : ""}${h.code ? ` · ${lastText(h)}` : ""}${h.w?.nextAction ? ` · 다음: ${h.w.nextAction}` : ""}${h.w?.dueAt ? ` (${fmtDate(h.w.dueAt)}까지)` : ""}`;
+      return `  - ${h.eq} ${h.label}${h.live ? ` (${elapsed(h.live.since, live.now)})` : " (알람 해제)"}, ${h.w?.status ?? (h.code ? "미접수" : "-")}${h.w?.owner ? `, 담당 ${h.w.owner}` : ""}${h.code ? `, ${lastText(h)}` : ""}${h.w?.nextAction ? `, 다음: ${h.w.nextAction}` : ""}${h.w?.dueAt ? ` (${fmtDate(h.w.dueAt)}까지)` : ""}`;
     }),
     `■ 미해결 건`,
     ...(unresolved.length ? unresolved.map((l) => `  - ${l.equipmentId} ${l.alarmCode} ${l.cause} / 시도: ${l.action} (${l.worker})`) : ["  - 없음"]),
-    `■ 자주 발생한 알람`,
-    ...top.map((t) => `  - ${t.alarmCode} ${t.count}건 · ${fmtMin(t.downtimeMin)}`),
+    `■ 자주 뜬 알람`,
+    ...top.map((t) => `  - ${t.alarmCode} ${t.count}건, ${fmtMin(t.downtimeMin)}`),
     `■ 다가오는 예방정비`,
     ...(overduePm.length ? overduePm.map((s) => `  - ${s.equipmentId} ${s.action} (권장 ${fmtDate(s.next, false)})`) : ["  - 없음"]),
     `■ 검토 대기 개선 제안`,
@@ -116,19 +117,19 @@ export default function ReportPage() {
         </div>
       </div>
       <p className="text-sm text-slate-400">
-        근무조 동안의 조치이력(DB)과 지금 설비 상태를 한 장으로 묶었습니다. 매일 쓰는 화면이라 기록이 쌓이는 이유가 됩니다.
+        이번 근무조 조치이력과 지금 설비 상태를 한 장에 모았습니다. 메신저로 복사하거나 인쇄해서 다음 조에 넘기세요.
       </p>
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <Stat label="조치" value={`${logs.length}건`} />
         <Stat label="정지 시간" value={fmtMin(downtime)} />
         <Stat label="미해결" value={`${unresolved.length}건`} tone={unresolved.length ? "text-red-300" : "text-slate-200"} />
-        <Stat label="이어받을 것" value={`${handoff.length}건`} sub={`미접수 ${handoff.filter((h) => h.code && !h.w).length}건`} tone="text-orange-300" />
+        <Stat label="이어받을 일" value={`${handoff.length}건`} sub={`미접수 ${handoff.filter((h) => h.code && !h.w).length}건`} tone="text-orange-300" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card
-          title={`다음 행동 · 이어받을 것 ${handoff.length}건`}
+          title={`이어받을 일 ${handoff.length}건`}
           right={<span className="text-[11px] text-slate-400">처리 상태는 알람 상세에서 바꿉니다</span>}
         >
           <ul className="space-y-2 text-sm">
@@ -156,7 +157,7 @@ export default function ReportPage() {
                       <span>담당: {h.w?.owner || <span className="text-red-300">미지정</span>}</span>
                       <span>{lastText(h)}</span>
                       <span className="sm:col-span-2">
-                        다음: {h.w?.nextAction || "—"}
+                        다음: {h.w?.nextAction || "-"}
                         {h.w?.dueAt && (
                           <span className={overdue ? "text-red-300" : ""}>
                             {" "}
@@ -187,7 +188,7 @@ export default function ReportPage() {
             {!unresolved.length && <li className="text-slate-400">없음</li>}
           </ul>
         </Card>
-        <Card title="이 근무조에 자주 발생한 알람">
+        <Card title="이 근무조에 자주 뜬 알람">
           <ul className="space-y-1 text-sm">
             {top.map((t) => (
               <li key={t.alarmCode} className="flex gap-2">

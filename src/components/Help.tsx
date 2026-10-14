@@ -60,8 +60,8 @@ export function ViewToggle() {
       const n = document.querySelectorAll("[data-expert]").length;
       setNote(
         m === "simple"
-          ? `쉽게 보기 — 이 화면의 전문가용 세부 ${n}곳(래더 표·변경 전후 래더·측정값 분포·검증 분해 등)을 점선 상자로 접었습니다. 할 일·근거 요약·흐름도·숫자는 그대로입니다.`
-          : `전체 보기 — 이 화면의 전문가용 세부 ${n}곳을 모두 펼쳤습니다. 결론과 숫자는 쉽게 보기와 같습니다.`,
+          ? `쉽게 보기로 바꿨습니다. 이 화면의 세부 ${n}곳(래더 표, 변경 전후 래더, 측정값 분포 등)을 점선 상자로 접었습니다. 할 일, 근거 요약, 흐름도, 숫자는 그대로입니다.`
+          : `전체 보기로 바꿨습니다. 이 화면의 세부 ${n}곳을 모두 펼쳤습니다. 결론과 숫자는 쉽게 보기와 같습니다.`,
       );
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => setNote(null), 6000);
@@ -77,8 +77,8 @@ export function ViewToggle() {
             aria-pressed={mode === m}
             title={
               m === "simple"
-                ? "쉽게 보기: 할 일·근거 요약·흐름도만. 래더 표·변경 전후 래더·측정값 분포·검증 분해표는 접기"
-                : "전체 보기: 전문가용 세부까지 모두 펼치기 (결론과 숫자는 같음)"
+                ? "쉽게 보기: 할 일, 근거 요약, 흐름도만 보이고 래더 표나 분포 같은 세부는 접힙니다"
+                : "전체 보기: 세부까지 모두 펼칩니다. 결론과 숫자는 같습니다"
             }
             className={`whitespace-nowrap px-2 py-0.5 ${mode === m ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}
           >
@@ -114,7 +114,7 @@ export function ExpertOnly({ children, label, when = true }: { children: ReactNo
       onClick={() => setMode("full")}
       className="w-full rounded-lg border border-dashed border-slate-700 px-3 py-2 text-left text-xs text-slate-400 hover:text-slate-200"
     >
-      전문가용 세부 · {label} — &lsquo;전체&rsquo; 보기에서 펼쳐집니다
+      전문가용 세부: {label}. 누르면 전체 보기로 펼칩니다.
     </button>
   );
 }
@@ -125,7 +125,7 @@ export function HelpButton() {
     <button
       onClick={() => open("start")}
       className="flex items-center gap-1 whitespace-nowrap rounded-full border border-sky-500/50 px-2.5 py-0.5 text-sky-200 hover:bg-sky-600/10"
-      title="처음 보는 분을 위한 사용법과 용어 풀이"
+      title="사용법과 용어 풀이"
     >
       <span className="grid h-4 w-4 place-items-center rounded-full bg-sky-500/30 text-[10px] font-bold">?</span>
       처음 보는 분
@@ -157,7 +157,8 @@ export function Term({ k, children }: { k: string; children?: ReactNode }) {
           role="tooltip"
           className="absolute left-0 top-full z-40 mt-1 block w-64 rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-left text-xs font-normal leading-relaxed text-slate-200 shadow-xl"
         >
-          <b className="text-sky-200">{g.term}</b> — {g.plain}
+          <b className="block text-sky-200">{g.term}</b>
+          {g.plain}
         </span>
       )}
     </span>
@@ -180,15 +181,15 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">이 화면은 이렇게 씁니다</h2>
+          <h2 className="text-lg font-semibold">도움말</h2>
           <button onClick={onClose} className="ml-auto rounded px-2 py-1 text-sm text-slate-400 hover:bg-slate-800" aria-label="닫기">
             닫기 ✕
           </button>
         </div>
         <p className="mt-1 text-sm text-slate-400">
-          배터리 라인 설비 31대에서 알람이 발생하면, 설비를 움직이는 프로그램(PLC 래더)을 거꾸로 따라가 <b className="text-slate-200">무엇이 알람을 켰는지</b>와{" "}
-          <b className="text-slate-200">먼저 할 일</b>을 보여 줍니다. 조치를 기록하면 쌓인 기록으로 <b className="text-slate-200">재발을 막는 방법</b>을
-          제안합니다. 모든 데이터는 시연용 가상 데이터입니다.
+          배터리 라인 설비(31대)에 알람이 뜨면, PLC 래더를 거꾸로 따라가 <b className="text-slate-200">무엇이 알람을 켰는지</b>와{" "}
+          <b className="text-slate-200">먼저 할 일</b>을 보여 줍니다. 조치를 기록해 두면 쌓인 기록으로 <b className="text-slate-200">재발 막는 방법</b>을
+          제안합니다.
         </p>
         <Link
           href="/tour"
@@ -196,7 +197,7 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
           className="mt-3 flex items-center justify-between rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-sm text-sky-100 hover:bg-sky-500/20"
         >
           <span>
-            <b>5분 체험 순서</b> — 처음이면 이 순서대로 버튼만 누르세요 (설치·로그인 없음)
+            <b>5분 체험 순서</b>: 처음이면 이 순서대로 버튼만 누르세요.
           </span>
           <span aria-hidden>→</span>
         </Link>
@@ -216,16 +217,16 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
           <ol className="mt-4 space-y-3">
             {[
               [
-                "빨간·주황 칸을 누르세요",
-                "실시간 현황에서 빨간 칸은 중알람(설비 멈춤), 주황 칸은 경알람(주의)입니다. 오른쪽 '대응 목록'은 급한 순서로 정렬돼 있고, 새 알람이 발생하면 오른쪽 위에 알림이 뜹니다.",
+                "빨간 칸, 주황 칸을 누르세요",
+                "실시간 현황에서 빨간 칸은 중알람(설비 멈춤), 주황 칸은 경알람(주의)입니다. 오른쪽 '대응 목록'은 급한 것부터 정렬돼 있습니다. 새 알람이 뜨면 오른쪽 위에 알림이 나옵니다.",
               ],
               [
-                "알람 상세에서 먼저 할 일을 확인하세요",
-                "'지금 할 일'에 안전 확인 → 먼저 볼 곳 → 과거에 해결된 조치가 순서대로 나옵니다. 아래 흐름도는 알람을 켠 조건(남이 짠 래더도)과, 순차 동작이면 멈춘 단계를 그림으로 보여 줍니다.",
+                "알람 화면에서 할 일부터 보세요",
+                "'지금 할 일'에 안전 확인, 먼저 볼 곳, 전에 해결된 조치가 순서대로 나옵니다. 아래 흐름도에는 알람을 켠 조건이 나오고, 순차 동작이면 멈춘 단계도 나옵니다. 남이 짠 래더도 똑같이 읽습니다.",
               ],
               [
                 "조치가 끝나면 기록하세요",
-                "현장 메모를 말하듯 적고 '정리'를 누르면 표준 칸으로 나눠 줍니다. 저장 전에 사람이 확인합니다. 기록이 쌓일수록 '개선 제안'이 정확해집니다.",
+                "메모를 말하듯 적고 '정리'를 누르면 정해진 칸으로 나눠 줍니다. 저장 전에 내용을 직접 확인하세요. 기록이 쌓일수록 '개선 제안'이 정확해집니다.",
               ],
             ].map(([t, d], i) => (
               <li key={t} className="flex gap-3 rounded-lg bg-slate-900/70 p-3">
@@ -237,12 +238,13 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
               </li>
             ))}
             <li className="rounded-lg border border-slate-800 p-3 text-sm text-slate-400">
-              <b className="text-slate-200">쉽게 보기와 전체 보기</b> — 쉽게 보기는 할 일·근거 요약·흐름도만 보여 주고, 래더 표·변경 전후 래더·측정값 분포·검증
-              분해표 같은 전문가용 세부는 점선 상자로 접어 둡니다(누르면 펼침). 전체 보기는 모두 펼칩니다. 결론과 숫자는 두 보기에서 같습니다.
+              <b className="block text-slate-200">쉽게 보기와 전체 보기</b>
+              쉽게 보기는 할 일, 근거 요약, 흐름도만 보여 줍니다. 래더 표나 측정값 분포 같은 세부는 점선 상자로 접어 둡니다(누르면 펼침). 전체 보기는
+              다 펼칩니다. 결론과 숫자는 두 보기가 같습니다.
             </li>
             <li className="rounded-lg border border-slate-800 p-3 text-sm text-slate-400">
-              도구는 PLC에 아무것도 쓰지 않습니다. 래더를 바꾸자는 제안도 검토서로만 나오고, 안전·설비 보호·중알람은 래더 변경 제안에서 뺍니다. 효과 숫자는 모두
-              과거 기록에 다시 계산한 <b className="text-slate-200">추정</b>입니다.
+              도구는 PLC에 아무것도 쓰지 않습니다. 래더 변경도 검토서로만 제안합니다. 안전, 설비 보호 알람과 중알람은 래더 변경 제안에서 뺍니다. 효과 숫자는
+              과거 기록으로 다시 계산한 <b className="text-slate-200">추정</b>입니다.
             </li>
           </ol>
         )}
@@ -250,10 +252,10 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
         {tab === "color" && (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {[
-              ["bg-red-500", "중알람 (깜빡임)", "설비가 멈춘 심각한 알람 — 가장 먼저"],
-              ["bg-orange-400", "경알람", "주의 알람 — 품질·속도 영향"],
-              ["bg-slate-400", "정지(알람 없음)", "자동운전 조건이 막힘 — 설비 상세에서 막힌 조건 확인"],
-              ["bg-blue-300", "대기", "자재·작업 지시 대기 — 설비 문제 아님"],
+              ["bg-red-500", "중알람 (깜빡임)", "설비가 멈춘 큰 알람. 가장 먼저 봅니다."],
+              ["bg-orange-400", "경알람", "주의 알람. 품질이나 속도에 영향이 갑니다."],
+              ["bg-slate-400", "정지(알람 없음)", "자동운전 조건이 막혀 멈춤. 설비 상세에서 막힌 조건을 확인합니다."],
+              ["bg-blue-300", "대기", "자재나 작업 지시를 기다리는 중. 설비 문제가 아닙니다."],
               ["bg-emerald-400", "가동", "정상"],
             ].map(([dot, label, desc]) => (
               <div key={label} className="flex items-start gap-2 rounded-lg bg-slate-900/70 p-3 text-sm">
@@ -267,8 +269,13 @@ function HelpDialog({ tab, setTab, onClose }: { tab: HelpTab; setTab: (t: HelpTa
             <div className="rounded-lg bg-slate-900/70 p-3 text-sm sm:col-span-2">
               <b>원인 표시</b>
               <span className="mt-1 block text-slate-400">
-                <span className="text-sky-300">현장 입력</span> = 우리 설비 센서·스위치 · <span className="text-violet-300">외부 신호</span> = 다른
-                설비·유틸리티에서 온 신호 · <span className="text-teal-300">래더 로직</span> = 타이머·내부 조건에서 추적이 끝남
+                <span className="text-sky-300">현장 입력</span>: 우리 설비의 센서나 스위치
+              </span>
+              <span className="block text-slate-400">
+                <span className="text-violet-300">외부 신호</span>: 다른 설비나 유틸리티에서 온 신호
+              </span>
+              <span className="block text-slate-400">
+                <span className="text-teal-300">래더 로직</span>: 타이머나 내부 조건에서 추적이 끝남
               </span>
             </div>
             <div className="rounded-lg bg-slate-900/70 p-3 text-sm sm:col-span-2">

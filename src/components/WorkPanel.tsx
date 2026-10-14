@@ -48,22 +48,22 @@ export function WorkPanel({
   // 이 건의 경과: 발생 → 처리 기록 → 조치이력 → (해제)
   const timeline = useMemo(() => {
     const t0 = base.startedAt || startedAt;
-    const items: { at: string; label: string; tone: string }[] = [{ at: t0, label: "알람 발생 · 발생 순간 신호값 기록(스냅샷)", tone: "text-red-300" }];
+    const items: { at: string; label: string; tone: string }[] = [{ at: t0, label: "알람 발생 (그 순간 신호값 저장)", tone: "text-red-300" }];
     for (const h of base.history) items.push({ at: h.at, label: `처리 상태: ${h.note}`, tone: "text-sky-200" });
     for (const l of data.logs)
       if (l.equipmentId === equipmentId && l.alarmCode === alarmCode && l.occurredAt >= t0)
         items.push({
           at: l.occurredAt,
-          label: `조치 기록: ${l.action || l.actionType} → ${l.result}`,
+          label: `조치 기록: ${l.action || l.actionType} (${l.result})`,
           tone: l.result === "해결" ? "text-emerald-300" : "text-amber-200",
         });
-    if (!active) items.push({ at: "", label: "알람 해제됨(현재 발생 중 아님)", tone: "text-slate-400" });
+    if (!active) items.push({ at: "", label: "알람 해제됨", tone: "text-slate-400" });
     return items.sort((a, b) => (a.at && b.at ? a.at.localeCompare(b.at) : a.at ? -1 : 1));
   }, [base.startedAt, base.history, data.logs, equipmentId, alarmCode, startedAt, active]);
 
   async function save() {
     const w = await data.saveWork({ ...base, status, owner: owner.trim(), nextAction: nextAction.trim(), dueAt });
-    setSaved(`저장했습니다 · ${w.status}${w.owner ? ` · 담당 ${w.owner}` : ""}`);
+    setSaved(`저장했습니다. ${w.status}${w.owner ? `, 담당 ${w.owner}` : ""}`);
     setTimeout(() => setSaved(null), 2500);
   }
 
@@ -73,8 +73,8 @@ export function WorkPanel({
         <h2 className="text-sm font-semibold">대응 상태</h2>
         <span className={`rounded-full border px-2 py-0.5 text-xs ${WORK_TONE[base.status]}`}>{current ? base.status : "미접수"}</span>
         {current?.owner && <span className="text-xs text-slate-300">담당 {current.owner}</span>}
-        {current?.updatedAt && <span className="text-xs text-slate-400">· 마지막 갱신 {fmtDate(current.updatedAt)}</span>}
-        <span className="ml-auto text-[11px] text-slate-400">대시보드의 업무 기록입니다 — PLC 알람 리셋·등급과는 별개</span>
+        {current?.updatedAt && <span className="text-xs text-slate-400">마지막 갱신 {fmtDate(current.updatedAt)}</span>}
+        <span className="ml-auto text-[11px] text-slate-400">사람이 남기는 업무 기록입니다. 여기서 바꿔도 PLC 알람은 그대로입니다.</span>
       </div>
       <div className="mt-3 grid gap-3 lg:grid-cols-[auto_minmax(0,160px)_minmax(0,1fr)_minmax(0,190px)_auto] lg:items-end">
         <div>
@@ -147,7 +147,7 @@ export function WorkPanel({
           ))}
         </ol>
         <div className="mt-1 text-[11px] text-slate-400">
-          발생 전후 신호 파형: 미수집 — 실제 도입 시 PLC 게이트웨이(읽기 전용)가 신호 변화를 기록해야 볼 수 있습니다.
+          지금은 알람이 뜬 순간의 신호값만 읽습니다. 실제로 도입하면 읽기 전용 게이트웨이로 전후 신호 변화도 남길 계획입니다.
         </div>
       </div>
     </div>

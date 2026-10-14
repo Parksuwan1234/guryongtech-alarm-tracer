@@ -69,18 +69,23 @@ function Header() {
           <SimButton />
           <UsageButton />
           <ViewToggle />
-          <span
-            title={data.config.db === "supabase" ? "조치이력을 Supabase DB에 저장합니다" : "DB 키가 없어 이 브라우저에 저장합니다(공개 시연 모드)"}
-            className={`hidden whitespace-nowrap rounded-full border px-2 py-0.5 sm:inline ${data.config.db === "supabase" ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-400"}`}
-          >
-            DB · {data.config.db === "supabase" ? "Supabase" : "브라우저 저장"}
-          </span>
-          <span
-            title="AI는 래더 추적 결과를 쉬운 말로 풀어 주는 데만 씁니다"
-            className={`hidden whitespace-nowrap rounded-full border px-2 py-0.5 sm:inline ${data.config.ai ? "border-violet-500/40 text-violet-300" : "border-slate-700 text-slate-400"}`}
-          >
-            AI 설명 · {data.config.ai ? "켜짐" : "규칙 문장"}
-          </span>
+          <details className="relative hidden sm:block">
+            <summary className="cursor-pointer list-none whitespace-nowrap rounded-full border border-slate-700 px-2 py-0.5 text-slate-400 hover:text-slate-200">설정</summary>
+            <div className="absolute right-0 top-8 z-50 flex flex-col items-start gap-1.5 rounded-lg border border-slate-700 bg-slate-950 p-2 shadow-xl">
+            <span
+              title={data.config.db === "supabase" ? "조치이력을 Supabase DB에 저장합니다" : "DB 키가 없어 이 브라우저에 저장합니다(공개 시연 모드)"}
+              className={`whitespace-nowrap rounded-full border px-2 py-0.5 sm:inline ${data.config.db === "supabase" ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-400"}`}
+            >
+              DB · {data.config.db === "supabase" ? "Supabase" : "브라우저 저장"}
+            </span>
+            <span
+              title="AI는 래더 추적 결과를 쉬운 말로 풀어 주는 데만 씁니다"
+              className={`whitespace-nowrap rounded-full border px-2 py-0.5 sm:inline ${data.config.ai ? "border-violet-500/40 text-violet-300" : "border-slate-700 text-slate-400"}`}
+            >
+              AI 설명 · {data.config.ai ? "켜짐" : "규칙 문장"}
+            </span>
+            </div>
+          </details>
         </div>
       </div>
       {data.error && <div className="bg-amber-500/10 px-4 py-1 text-center text-xs text-amber-300">{data.error}</div>}
@@ -107,8 +112,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Gate>{children}</Gate>
           </main>
           <footer className="no-print mx-auto max-w-[1600px] px-4 pb-6 pt-2 text-[11px] text-slate-400">
-            모든 설비·래더·조치이력은 시연용 가상 데이터입니다. 래더 추적과 개선 제안은 코드가 계산하며(같은 입력 = 같은 결과), 이 도구는 PLC에 쓰지 않습니다. ·
-            팀 구룡테크 · GEW KOREA 2026 기업가정신 챌린지 · {APP_VERSION}
+            설비, 래더, 조치이력은 모두 시연용 가상 데이터입니다. 래더 추적과 개선 제안은 정해진 코드로 계산해서 같은 입력이면 결과도 같습니다. 이 도구는
+            PLC에 쓰지 않습니다.
+            <span className="block">팀 구룡테크 · GEW KOREA 2026 기업가정신 챌린지 · {APP_VERSION}</span>
           </footer>
           </GuideProvider>
         </HelpProvider>

@@ -179,7 +179,7 @@ export function detectSequences(prog: ParsedProgram): Sequence[] {
     const last = steps[steps.length - 1];
     result.push({
       id: root,
-      title: `${first.device}~${last.device} · ${steps.length}단계`,
+      title: `${first.device}~${last.device} (${steps.length}단계)`,
       style: es[0].style,
       steps,
       transitions,

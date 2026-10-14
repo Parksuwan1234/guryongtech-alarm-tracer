@@ -89,12 +89,12 @@ export default function Dashboard() {
         <div className="text-base">
           {abnormal.length ? (
             <>
-              지금 <b>{list.length}대</b> 중 <b className={heavyIds.length ? "text-red-300" : "text-orange-300"}>{abnormal.length - count("IDLE")}대</b>가
-              알람이거나 멈췄고
-              {count("IDLE") > 0 && <>, {count("IDLE")}대는 자재·지시 대기입니다</>}.{" "}
+              가상 설비 <b>{list.length}대</b> 중 <b className={heavyIds.length ? "text-red-300" : "text-orange-300"}>{abnormal.length - count("IDLE")}대</b>가
+              알람이거나 멈춰 있습니다.
+              {count("IDLE") > 0 && <> {count("IDLE")}대는 자재나 작업 지시를 기다리는 중입니다.</>}{" "}
               {focusIds.length > 0 && (
                 <>
-                  등록된 등급 기준으로 <b>{focusLabel}</b> <span className="mono font-semibold">{focusIds.join(", ")}</span>부터 확인하세요.
+                  <b>{focusLabel}</b> <span className="mono font-semibold">{focusIds.join(", ")}</span>부터 확인하세요.
                 </>
               )}
             </>
@@ -105,8 +105,8 @@ export default function Dashboard() {
         {first?.status === "ALARM" && first.alarm && (
           <Link
             href={`/alarm/${first.id}/${first.alarm.code}`}
-            title="정렬 기준: 등록된 알람 등급(중 → 경), 같은 등급은 오래된 순"
-            className="ml-auto rounded-md bg-sky-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-800"
+            title="정렬 기준: 등록된 알람 등급(중알람 먼저), 같은 등급이면 오래된 것 먼저"
+            className="ml-auto rounded-md border border-sky-500/60 px-3 py-1.5 text-sm font-semibold text-sky-200 hover:bg-sky-600/10"
           >
             먼저 볼 알람 열기 ({first.id}) →
           </Link>
@@ -135,7 +135,7 @@ export default function Dashboard() {
           <Stat
             label="재발 방지 개선 제안"
             value={`${data.proposals.length}건`}
-            sub={`래더 수정 검토 ${ladderCount}건 · 모두 적용 시 연 ${Math.round(yearly / 60)}시간 정지 감소 (추정, 실증 전)`}
+            sub={`래더 수정 검토 ${ladderCount}건, 가상 이력 기준 연 ${Math.round(yearly / 60)}시간 정지 감소 예상`}
             tone="text-sky-300"
           />
         </Link>
@@ -145,12 +145,12 @@ export default function Dashboard() {
         <div key={g.code + g.device} className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-500/50 bg-violet-500/10 px-4 py-2.5 text-sm">
           <span className="rounded bg-violet-600 px-2 py-0.5 text-xs font-bold text-white">동시 다발</span>
           <span>
-            <b className="mono">{g.units.join(" · ")}</b> 에서 <span className="mono">{g.code}</span> {g.name}
+            <b className="mono">{g.units.join(", ")}</b>에서 <span className="mono">{g.code}</span> {g.name}
           </span>
           <span className="text-slate-300">
-            — 원천이 같은 외부 신호(<span className="mono">{g.device}</span> {g.comment})라 설비 {g.units.length}대 각각의 고장이 아니라 공용 원인일 가능성이
-            높습니다. 각 설비를 따로 리셋하기 전에 <b>{g.checkWith}</b>
-            {withWa(g.checkWith).slice(g.checkWith.length)} 신호 상태를 함께 확인하세요.
+            모두 같은 외부 신호(<span className="mono">{g.device}</span> {g.comment})로 켜진 알람입니다. 설비 {g.units.length}대가 각각 고장 났다기보다 공용
+            원인일 가능성이 큽니다. 하나씩 리셋하기 전에 <b>{g.checkWith}</b>
+            {withWa(g.checkWith).slice(g.checkWith.length)} 신호 상태를 같이 확인하세요.
           </span>
         </div>
       ))}
@@ -165,7 +165,7 @@ export default function Dashboard() {
                 이상 설비만 강조
               </label>
               <span className="text-slate-500">|</span>
-              <span className="text-slate-400" title="무작위로 가상 알람이 발생하는 빠르기">가상 알람 발생</span>
+              <span className="text-slate-400" title="무작위로 알람을 띄우는 빠르기">무작위 알람</span>
               {SPEEDS.map((s) => (
                 <button
                   key={s.id}
@@ -178,14 +178,14 @@ export default function Dashboard() {
               <button
                 onClick={live.triggerShared}
                 className="rounded px-1.5 py-0.5 text-violet-300 hover:text-violet-200"
-                title="공용 냉각수 압력 저하로 롤프레스 3대가 함께 알람"
+                title="공용 냉각수 압력이 떨어져 롤프레스 3대에 함께 알람이 뜹니다"
               >
                 ⚡ 공용 유틸리티 장애
               </button>
               <button
                 onClick={live.resetScene}
                 className="rounded px-1.5 py-0.5 text-slate-400 hover:text-slate-200"
-                title="시연 장면(알람 4·정지 2·대기 1)으로 되돌리기"
+                title="시연 장면(알람 4대, 정지 2대, 대기 1대)으로 되돌립니다"
               >
                 ↺ 시연 장면
               </button>
@@ -199,17 +199,17 @@ export default function Dashboard() {
             <Legend dot="bg-slate-400" label="정지(알람 없음)" />
             <Legend dot="bg-orange-400" label="경알람" />
             <Legend dot="bg-red-500" label="중알람(깜빡임)" />
-            <span className="text-slate-400">칸 아래 시간 = 가동은 가동 시작 후(시:분:초), 그 밖은 멈춘 뒤 경과</span>
-            <span className="text-slate-400">선 = 자재 흐름(알람은 설비마다 단독 발생)</span>
+            <span className="text-slate-400">설비 칸 아래 숫자는 가동한 시간, 또는 멈춘 뒤 지난 시간입니다</span>
+            <span className="text-slate-400">선: 자재 흐름(알람은 설비마다 따로 뜸)</span>
           </div>
         </Card>
 
         <div className="space-y-4">
           <Card
-            title={`대응 목록 · 멈춤·주의 ${abnormal.length}대`}
+            title={`대응 목록 · ${abnormal.length}대`}
             right={
-              <span className="text-[11px] text-slate-400" title="같은 단계 안에서는 오래된 순">
-                중알람 → 경알람 → 정지 → 대기 순
+              <span className="text-[11px] text-slate-400" title="같은 등급이면 오래된 것부터">
+                중알람, 경알람, 정지, 대기 순
               </span>
             }
             bodyClass="p-2"
@@ -226,7 +226,7 @@ export default function Dashboard() {
                     <span className="min-w-0 flex-1 truncate text-slate-300">{e.alarm ? `${e.alarm.code} ${e.alarm.name}` : e.reason}</span>
                     {e.alarm && repeatCount(data.logs, e.id, e.alarm.code, 7, live.now) >= REPEAT_THRESHOLD && (
                       <span
-                        title="같은 설비·같은 알람의 최근 7일 조치 기록 수(한 번 고장에 여러 기록이 있을 수 있음) — 반복 의심, 등급을 대체하지 않음"
+                        title="최근 7일 같은 설비, 같은 알람의 조치 기록 수. 한 번 고장에 기록이 여러 건일 수 있어 반복 의심으로만 봅니다(등급과 별개)."
                         className="shrink-0 rounded bg-violet-500/20 px-1 text-[10px] text-violet-200"
                       >
                         7일 기록 {repeatCount(data.logs, e.id, e.alarm.code, 7, live.now)}건
@@ -364,23 +364,23 @@ function EquipPanel({ id, onClose }: { id: string; onClose: () => void }) {
             href={`/alarm/${id}/${s.alarm.code}`}
             className="mt-3 flex items-center justify-center rounded-md bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800"
           >
-            알람 원인 · 먼저 할 일 보기 →
+            원인과 할 일 보기 →
           </Link>
         </div>
       )}
 
       {why && (
         <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-400/5 p-3">
-          <div className="mb-2 text-xs font-semibold text-amber-200">알람 없는 {s.status === "IDLE" ? "대기" : "정지"} 진단 · 자동운전 조건 역추적</div>
+          <div className="mb-2 text-xs font-semibold text-amber-200">알람 없이 {s.status === "IDLE" ? "대기" : "정지"}한 이유 (자동운전 조건 역추적)</div>
           <WhyNotView r={why} equipmentId={id} />
-          <Btn tone="success" className="mt-3 w-full" onClick={() => live.recover(id, `${id} 조건 복구 → 가동`)}>
-            조건 복구 확인 → 가동
+          <Btn tone="success" className="mt-3 w-full" onClick={() => live.recover(id, `${id} 조건 복구 후 가동 복귀`)}>
+            조건 복구 확인 후 가동
           </Btn>
         </div>
       )}
 
       {s.status === "RUN" && (
-        <div className="mt-3 rounded-lg bg-emerald-500/5 p-3 text-sm text-emerald-300">정상 가동 중 · 누적 {s.count.toLocaleString()}</div>
+        <div className="mt-3 rounded-lg bg-emerald-500/5 p-3 text-sm text-emerald-300">정상 가동 중, 누적 생산 {s.count.toLocaleString()}개</div>
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
@@ -419,7 +419,7 @@ function EquipPanel({ id, onClose }: { id: string; onClose: () => void }) {
       )}
 
       <details className="mt-4 text-xs">
-        <summary className="cursor-pointer text-slate-400">시연 도구 (알람·정지 발생시키기)</summary>
+        <summary className="cursor-pointer text-slate-400">시연 도구 (알람, 정지 일으키기)</summary>
         <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
           <select className={inputCls} value={demoAlarm} onChange={(ev) => setDemoAlarm(ev.target.value)}>
             <option value="">알람 선택</option>
@@ -431,7 +431,7 @@ function EquipPanel({ id, onClose }: { id: string; onClose: () => void }) {
           </select>
           <Btn onClick={() => demoAlarm && live.triggerAlarm(id, demoAlarm)}>발생</Btn>
           <select className={inputCls} value={demoStop} onChange={(ev) => setDemoStop(ev.target.value)}>
-            <option value="">정지·대기 사유 선택</option>
+            <option value="">정지/대기 사유 선택</option>
             {STOP_REASONS.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.status === "IDLE" ? "대기" : "정지"} · {r.label}

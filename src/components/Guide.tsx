@@ -118,7 +118,7 @@ export function SimButton({ className = "" }: { className?: string }) {
     <button
       onClick={start}
       disabled={!ready}
-      title="알람 하나를 발생시켜, 알림 → 원인 확인 → 매뉴얼 → 조치 기록 → 개선 제안까지 화면을 짚으며 안내합니다"
+      title="알람을 하나 띄우고, 원인 확인부터 조치 기록, 개선 제안까지 화면을 짚어 가며 안내합니다"
       className={`whitespace-nowrap rounded-full bg-amber-400 px-3 py-0.5 font-semibold text-slate-950 hover:bg-amber-300 disabled:cursor-wait disabled:opacity-60 ${className}`}
     >
       {ready ? "▶ 시뮬레이션 시작" : "불러오는 중…"}
@@ -133,7 +133,7 @@ export function UsageButton() {
     <button
       onClick={openUsage}
       className="flex items-center gap-1 whitespace-nowrap rounded-full border border-sky-500/50 px-2.5 py-0.5 text-sky-200 hover:bg-sky-600/10"
-      title="알람이 발생하면 어떤 화면에서 무엇을 하는지 — 사용법"
+      title="알람이 뜨면 어느 화면에서 무엇을 하는지 봅니다"
     >
       <span className="grid h-4 w-4 place-items-center rounded-full bg-sky-500/30 text-[10px] font-bold">?</span>
       사용법
@@ -149,6 +149,15 @@ function GuideLayer({ i, setI, stop }: { i: number; setI: (n: number) => void; s
   const away = offPage(s, path);
   const [rect, setRect] = useState<Box | null>(null);
   const panel = useRef<HTMLDivElement>(null);
+  // 안내 상자가 본문 끝을 가리지 않게, 떠 있는 동안 페이지 아래에 그만큼 여백을 둠
+  useEffect(() => {
+    const h = (panel.current?.offsetHeight ?? 200) + 32;
+    const prev = document.body.style.paddingBottom;
+    document.body.style.paddingBottom = `${h}px`;
+    return () => {
+      document.body.style.paddingBottom = prev;
+    };
+  }, []);
 
   // 짚을 요소를 찾아 테두리 위치를 따라감 (가려져 있으면 한 번 스크롤 — 위는 실제 헤더 높이, 아래는 안내 상자 높이만큼 비킴)
   useEffect(() => {
@@ -225,7 +234,7 @@ function GuideLayer({ i, setI, stop }: { i: number; setI: (n: number) => void; s
         <p className="mt-1 text-sm leading-relaxed text-slate-300">{s.body}</p>
         {away && s.page && (
           <p className="mt-1 text-[11px] text-amber-200">
-            다른 화면으로 왔습니다. 아래 &lsquo;{s.page.label.replace(" →", "")}&rsquo;를 누르면 이어서 볼 수 있습니다.
+            안내하던 화면을 벗어났습니다. 아래 &lsquo;{s.page.label.replace(" →", "")}&rsquo;를 누르면 이어집니다.
           </p>
         )}
         {!away && !rect && !s.action && <p className="mt-1 text-[11px] text-slate-400">짚을 곳을 찾는 중… 화면을 조금 내려 보세요.</p>}
@@ -285,7 +294,7 @@ function UsageDialog({ onClose, onStart, ready }: { onClose: () => void; onStart
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2">
-          <h2 className="font-display text-lg font-semibold text-slate-100">사용법 — 알람이 발생하면 이렇게 씁니다</h2>
+          <h2 className="font-display text-lg font-semibold text-slate-100">사용법 (알람이 떴을 때)</h2>
           <button onClick={onClose} className="ml-auto rounded px-2 py-1 text-sm text-slate-400 hover:bg-slate-800" aria-label="사용법 닫기">
             닫기 ✕
           </button>
@@ -333,7 +342,7 @@ function UsageDialog({ onClose, onStart, ready }: { onClose: () => void; onStart
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-800 pt-3 text-xs text-slate-400">
           <Link href="/tour" onClick={onClose} className="text-sky-300 hover:underline">
-            5분 체험 순서(바로가기 목록)
+            5분 체험 순서
           </Link>
           <button
             onClick={() => {
@@ -353,7 +362,7 @@ function UsageDialog({ onClose, onStart, ready }: { onClose: () => void; onStart
           >
             색과 표시
           </button>
-          <span className="ml-auto">모든 데이터는 시연용 가상 데이터 · 도구는 PLC에 쓰지 않음 · 다시 보려면 위쪽 &lsquo;사용법&rsquo;</span>
+          <span className="ml-auto">다시 보려면 위쪽 &lsquo;사용법&rsquo;을 누르세요.</span>
         </div>
       </div>
     </div>
@@ -384,8 +393,8 @@ export function StartBanner() {
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm">
       <b className="text-amber-200">처음 보시나요?</b>
       <span className="text-slate-300">
-        위쪽 <b className="text-amber-200">▶ 시뮬레이션 시작</b>을 누르면 알람 하나가 발생하고, 알림 → 원인 확인 → 매뉴얼 → 조치 기록 → 개선 제안까지 화면을 짚으며
-        안내합니다. 설치·로그인은 필요 없습니다.
+        위쪽 <b className="text-amber-200">▶ 시뮬레이션 시작</b>을 눌러 보세요. 가상 알람이 하나 뜨고, 원인 추적부터 조치 기록, 검토서까지
+        화면을 차례대로 짚어 줍니다.
       </span>
       <span className="ml-auto flex flex-wrap items-center gap-2">
         <SimButton />

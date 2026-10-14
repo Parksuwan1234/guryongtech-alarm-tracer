@@ -38,23 +38,23 @@ export function ruleNormalize(text: string, causeOptions: string[]): Normalized 
     if (!m) continue;
     const after = t.slice((m.index ?? 0) + m[0].length);
     if (NOT_DONE.test(after)) {
-      out.notes.push(`'${m[0]}${after.slice(0, 5)}' → 실시하지 않음/예정으로 보고 제외`);
+      out.notes.push(`'${m[0]}${after.slice(0, 5)}' 부분은 안 했거나 할 예정이라 뺌`);
       continue;
     }
     out.actionType = type;
-    out.notes.push(`'${m[0]}' → 조치 유형 ${type}`);
+    out.notes.push(`조치 유형 ${type} ('${m[0]}')`);
     break;
   }
   if (!out.actionType) out.pending.push("조치 유형");
 
   if (/안\s?풀|안\s?됨|재발|미해결|계속|다시\s?(뜸|발생|남)/.test(t)) {
     out.result = "미해결";
-    out.notes.push("재발·미해결 표현 → 결과 미해결");
+    out.notes.push("결과 미해결 (재발이나 안 풀림 표현)");
   } else if (/해결|원인\s?제거|재발\s?없/.test(t)) {
     out.result = "해결";
-    out.notes.push("'해결' 표현 → 결과 해결");
+    out.notes.push("결과 해결 ('해결' 표현)");
   } else {
-    if (/재가동|가동|정상|돌아감|돌아갔/.test(t)) out.notes.push("재가동은 관찰일 뿐 — 해결 여부는 확인 필요");
+    if (/재가동|가동|정상|돌아감|돌아갔/.test(t)) out.notes.push("재가동됐다고 해결은 아님 (확인 필요)");
     out.pending.push("결과(해결 여부)");
   }
 
@@ -82,7 +82,7 @@ export function ruleNormalize(text: string, causeOptions: string[]): Normalized 
     .map((x) => x.c);
   if (/원인\s?(은\s?)?(아직\s?)?(모름|미확인|불명)/.test(t)) {
     out.causeCandidates = [];
-    out.notes.push("'원인 모름' → 원인 미확인");
+    out.notes.push("원인 미확인 ('원인 모름' 표현)");
   }
   out.pending.push("원인 (후보에서 고르거나 직접 입력)");
   // 조치 내용 칸에는 '한 일'만: '10분', '해결', '지금 정상' 같은 시간·결과 조각은 위 칸으로 갔으므로 뺌

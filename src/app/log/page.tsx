@@ -76,8 +76,8 @@ export default function LogPage() {
       <div>
         <h1 className="text-xl font-semibold">로그 분석 (보조 입력)</h1>
         <p className="mt-1 text-sm text-slate-400">
-          레이아웃에 없는 알람이나 지난 로그는 여기에 붙여 넣으면 같은 알람 상세(래더 역추적)로 이어집니다. 알람·설비 번호 찾기는 코드가 하고, 외부 AI로 보낼
-          때는 아래처럼 민감 값을 먼저 가립니다.
+          레이아웃에 없는 알람이나 지난 로그를 여기에 붙여 넣으면 해당 알람 상세(래더 역추적)로 갈 수 있습니다. 설비 번호와 알람 번호는 코드가 찾습니다. 외부
+          AI로 보낼 때는 민감한 값을 먼저 가립니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

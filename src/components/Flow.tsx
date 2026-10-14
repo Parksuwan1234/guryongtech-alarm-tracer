@@ -34,7 +34,7 @@ function gateOf(n: TraceNode): { label: string; title: string } | null {
   const hasAnd = kids.slice(1).some((c) => c.instr.startsWith("AN"));
   if (hasOr && !hasAnd) return { label: "또는", title: "하나라도 성립하면 (OR)" };
   if (hasAnd && !hasOr) return { label: "그리고", title: "모두 성립해야 (AND)" };
-  return { label: "조건식", title: "그리고·또는이 섞인 조건식 — 목록 보기에서 순서 확인" };
+  return { label: "조건식", title: "그리고와 또는이 섞여 있습니다. 순서는 목록 보기에서 확인하세요." };
 }
 
 function cut(s: string, n: number) {
@@ -196,7 +196,7 @@ export function AlarmFlow({ trace, onSequence }: { trace: TraceResult; onSequenc
                     : n.culprit
                       ? "◎ 알람 성립 원인"
                       : n.sequence
-                        ? "순차 동작에서 나온 신호 → 아래 흐름도"
+                        ? "순차 동작 신호, 아래 흐름도로 이어짐"
                         : `${conditionHint(n)}${n.step ? ` · 스텝 ${n.step}` : ""}`}
                 </text>
               </g>
@@ -213,13 +213,13 @@ export function AlarmFlow({ trace, onSequence }: { trace: TraceResult; onSequenc
           <span className="mr-1 inline-block w-5 border-t border-dashed border-slate-500 align-middle" />
           성립하지 않은 갈래
         </span>
-        <span>왼쪽 신호에서 오른쪽 알람 쪽으로 읽습니다</span>
+        <span>오른쪽 알람에서 거꾸로 따라가 찾은 원인 신호가 왼쪽에 있습니다</span>
         {others.size > 0 && (
           <span>
             그림에서 뺀 조건(원인 아님):{" "}
             {Array.from(others.values())
               .map((o) => `${o.device} ${o.comment}${o.role === "reset" ? "(해제)" : o.role === "state" ? "(운전 상태)" : ""}`)
-              .join(" · ")}
+              .join(", ")}
           </span>
         )}
       </div>
@@ -265,7 +265,7 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
                   </span>
                   <span className="font-semibold text-slate-100">{s.label}</span>
                   <span className="mono text-[11px] text-slate-400">{s.device}</span>
-                  {active && <span className="ml-auto rounded bg-sky-700 px-1.5 py-0.5 text-[11px] font-semibold text-white">알람 순간 이 단계</span>}
+                  {active && <span className="ml-auto rounded bg-sky-700 px-1.5 py-0.5 text-[11px] font-semibold text-white">알람 뜰 때 이 단계</span>}
                 </div>
                 {!compact && s.actions.length > 0 && (
                   <div className="mt-1 flex flex-wrap items-center gap-1 pl-8 text-[11px]">
@@ -284,7 +284,7 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
                       {t.loopBack ? "↩ " : "↪ "}
                       {josa(target ? `${steps.indexOf(target) + 1}. ${target.label}` : t.to, "으로")}
                       {t.loopBack ? " 돌아감" : " 갈래"}
-                      {t.conditions.length ? ` — 조건 ${t.conditions.map((c) => `${c.device} ${c.comment}`).join(", ")}` : " — 조건 없이 바로"}
+                      {t.conditions.length ? ` (조건: ${t.conditions.map((c) => `${c.device} ${c.comment}`).join(", ")})` : " (조건 없이 바로)"}
                     </div>
                   );
                 })}
@@ -298,7 +298,7 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
                   <div className={`w-0.5 shrink-0 ${liveNext && liveNext.ready === false ? "bg-amber-400" : "bg-slate-600"}`} />
                   <div className="min-w-0 py-1 text-xs">
                     <div className="mb-1 text-[11px] text-slate-400">
-                      ↓ 넘어가는 조건{toNext.complex ? " (그리고·또는 섞임 — 래더에서 순서 확인)" : toNext.conditions.length > 1 ? " (모두)" : ""}
+                      ↓ 넘어가는 조건{toNext.complex ? " (그리고와 또는이 섞임, 순서는 래더에서 확인)" : toNext.conditions.length > 1 ? " (모두 맞아야 함)" : ""}
                       <span className="mono ml-1">스텝 {toNext.ladderStep}</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
@@ -320,17 +320,17 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
                           >
                             <span className="mono font-semibold">{c.device}</span> {c.comment}
                             {(c.negated || c.compare) && <span className="text-slate-400"> {condText(c)}</span>}
-                            {lc && <b className="ml-1">{blocked ? `지금 ${lc.value ? "ON" : "OFF"} — 기다리는 중` : "성립"}</b>}
+                            {lc && <b className="ml-1">{blocked ? `지금 ${lc.value ? "ON" : "OFF"}, 기다리는 중` : "성립"}</b>}
                           </span>
                         );
                       })}
                     </div>
                     {liveNext && liveNext.ready === false && (
                       <div className="mt-1 text-[11px] text-amber-200">
-                        여기서 다음 단계로 못 넘어갔습니다
+                        여기서 다음 단계로 못 넘어갔습니다.
                         {liveNext.conditions
                           .filter((c) => !c.ok && c.where)
-                          .map((c) => ` · ${c.device} 위치: ${c.where}`)
+                          .map((c) => ` ${c.device} 위치: ${c.where}.`)
                           .join("")}
                       </div>
                     )}
@@ -344,8 +344,8 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
 
       <div className="space-y-3 text-xs">
         <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-3">
-          <div className="mb-1 text-[11px] text-slate-400">시간 감시 · 이어진 알람</div>
-          {seq.watches.length === 0 && <div className="text-slate-400">이 시퀀스를 지켜보는 타이머가 없습니다.</div>}
+          <div className="mb-1 text-[11px] text-slate-400">감시 타이머와 이어진 알람</div>
+          {seq.watches.length === 0 && <div className="text-slate-400">이 순차 동작을 감시하는 타이머가 없습니다.</div>}
           {seq.watches.map((w) => (
             <div key={w.timer} className="mb-2 last:mb-0">
               <div>
@@ -354,15 +354,16 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
                 {w.seconds != null && <span className="mono ml-1 rounded bg-teal-500/15 px-1 text-teal-300">{w.seconds.toFixed(1)}초</span>}
               </div>
               <div className="mt-0.5 text-slate-400">
-                {w.watches.map((x) => (x.negated ? `${josa(`${x.device} ${x.comment}`, "이")} 켜지기 전까지` : `${x.device} ${x.comment} 동안`)).join(", ")} 시간을 잽니다
+                {w.watches.map((x) => (x.negated ? `${josa(`${x.device} ${x.comment}`, "이")} 켜지기 전까지` : `${x.device} ${x.comment} 동안`)).join(", ")} 시간을 잽니다.
                 {w.alarms.length > 0 && (
                   <>
-                    {" → 넘으면 "}
+                    {" 넘기면 "}
                     {w.alarms.map((a) => (
                       <span key={a.code} className="text-red-300">
                         <span className="mono">{a.code}</span> {a.name}{" "}
                       </span>
                     ))}
+                    {"알람이 켜집니다."}
                   </>
                 )}
               </div>
@@ -382,7 +383,7 @@ export function SequenceFlow({ seq, position, compact = false }: { seq: Sequence
           </div>
         )}
         <div className="rounded-lg border border-dashed border-slate-700 p-3 text-[11px] leading-relaxed text-slate-400">
-          단계별 걸린 시간: 미수집 — 실제 도입 시 PLC 게이트웨이(읽기 전용)가 단계 비트가 바뀐 시각을 기록하면, 어느 단계가 느려졌는지 볼 수 있습니다.
+          단계별 걸린 시간은 아직 모으지 않습니다. 실제 도입 때 PLC 게이트웨이(읽기 전용)가 단계 비트가 바뀐 시각을 남기면, 어느 단계가 느려졌는지 볼 수 있습니다.
           {position && !position.known && " 이 스냅샷에는 단계 비트 값이 없어 현재 단계를 표시하지 않았습니다."}
         </div>
         <div className="flex flex-wrap gap-1 text-[11px] text-slate-400">

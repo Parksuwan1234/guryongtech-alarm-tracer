@@ -10,7 +10,7 @@ import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "알람 원인 추적 대시보드 · 구룡테크",
-  description: "PLC 래더 역추적과 조치이력 DB로 설비 알람의 원인을 찾고, 재발을 막는 개선안을 제안하는 현장 대시보드 (가상 데이터 시제품)",
+  description: "PLC 래더를 거꾸로 따라가 설비 알람 원인을 찾고, 조치이력으로 재발 방지안을 내는 현장 대시보드. 가상 데이터로 만든 시제품입니다.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

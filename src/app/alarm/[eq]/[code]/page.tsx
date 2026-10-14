@@ -64,9 +64,9 @@ export default function AlarmDetail() {
 
   const spreadText =
     spread.verdict === "single"
-      ? `${units.length}대 중 ${spread.top.unit}에 ${spread.top.count}/${spread.total}건 집중 → 설비 고유 문제 가능성`
+      ? `${units.length}대 중 ${spread.top.unit}에 ${spread.top.count}/${spread.total}건이 몰려 있습니다. 이 설비만의 문제일 수 있습니다`
       : spread.verdict === "common"
-        ? `${units.length}대 중 ${spread.affected}대에서 발생 → 래더·레시피 공통 문제 가능성`
+        ? `${units.length}대 중 ${spread.affected}대에서 났습니다. 래더나 레시피 같은 공통 문제일 수 있습니다`
         : spread.total
           ? `${units.length}대 중 ${spread.affected}대에서 ${spread.total}건`
           : "";
@@ -133,18 +133,18 @@ export default function AlarmDetail() {
   const seqLeaf = trace.leaves.find((l) => l.sequence);
   const factText = c0
     ? c0.compare
-      ? `${c0.comment} 값이 ${c0.value}로 기준(${c0.compare.op} ${c0.compare.value})을 넘어, 스텝 ${c0.step}의 조건이 성립했고 ${trace.alarm.device}(알람)이 켜졌습니다.`
-      : `${josa(`${c0.comment}(${c0.device})`, "이")} ${josa(`${c0.value ? "ON" : "OFF"}${normalOf(c0.device) != null ? `(평상시 ${normalOf(c0.device) ? "ON" : "OFF"})` : ""}`, "이")} 되어, 스텝 ${c0.step}의 조건이 성립했고 ${trace.alarm.device}(알람)이 켜졌습니다.`
+      ? `${c0.comment} 값이 ${josa(String(c0.value), "으로")} 기준(${c0.compare.op} ${c0.compare.value})을 넘었습니다. 그래서 스텝 ${c0.step} 조건이 맞아 ${trace.alarm.device}(알람)이 켜졌습니다.`
+      : `${josa(`${c0.comment}(${c0.device})`, "이")} ${josa(`${c0.value ? "ON" : "OFF"}${normalOf(c0.device) != null ? `(평상시 ${normalOf(c0.device) ? "ON" : "OFF"})` : ""}`, "이")} 됐습니다. 그래서 스텝 ${c0.step} 조건이 맞아 ${trace.alarm.device}(알람)이 켜졌습니다.`
     : tm0 && seqLeaf
-      ? `${tm0.device} 타이머(${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초) 판정으로 알람이 켜졌고, 추적은 ${josa(`${seqLeaf.device} ${seqLeaf.comment}`, "을")} 거쳐 순차 동작(${seqs[0]?.title ?? seqLeaf.sequence})으로 이어집니다. 센서 정상을 증명한 것은 아닙니다.`
+      ? `${tm0.device} 타이머(${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초)가 다 차서 알람이 켜졌습니다. 추적은 ${josa(`${seqLeaf.device} ${seqLeaf.comment}`, "을")} 거쳐 순차 동작(${seqs[0]?.title ?? seqLeaf.sequence})으로 이어집니다. 센서가 정상이라는 뜻은 아닙니다.`
       : tm0
-      ? `${tm0.device} 타이머(${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초) 판정으로 알람이 켜졌고, 추적은 래더 내부 조건(${trace.leaves.map((l) => l.device).join(", ")})에서 끝났습니다. 센서 정상을 증명한 것은 아닙니다.`
-      : `추적이 래더 내부 조건(${trace.leaves.map((l) => l.device).join(", ")})에서 끝났습니다. 센서 정상을 증명한 것은 아닙니다.`;
+      ? `${tm0.device} 타이머(${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초)가 다 차서 알람이 켜졌습니다. 추적은 래더 내부 조건(${trace.leaves.map((l) => l.device).join(", ")})에서 끝났습니다. 센서가 정상이라는 뜻은 아닙니다.`
+      : `추적이 래더 내부 조건(${trace.leaves.map((l) => l.device).join(", ")})에서 끝났습니다. 센서가 정상이라는 뜻은 아닙니다.`;
   const stuck = seqPos
     .flatMap(({ seq, pos }) => pos.active.map((a) => ({ seq, a, wait: a.next.flatMap((n) => n.conditions.filter((c) => !c.ok)) })))
     .find((x) => x.wait.length);
   const seqNote = stuck
-    ? `알람이 울린 순간 설비는 '${stuck.a.step.label}' 단계에 있었고, 다음 단계로 넘어가는 데 필요한 신호 ${josa(stuck.wait.map((c) => `${c.device} ${c.comment}`).join(", "), "을")} 기다리고 있었습니다(지금 ${stuck.wait.map((c) => (c.value ? "켜짐" : "꺼짐")).join(", ")}).`
+    ? `알람이 울릴 때 설비는 '${stuck.a.step.label}' 단계에서 ${josa(stuck.wait.map((c) => `${c.device} ${c.comment}`).join(", "), "을")} 기다리고 있었습니다(지금 ${stuck.wait.map((c) => (c.value ? "켜짐" : "꺼짐")).join(", ")}). 이 신호가 들어와야 다음 단계로 넘어갑니다.`
     : "";
   // 처음 보는 사람용 한 문장 — 무엇 때문에 알람이 울렸나 (PLC 주소 없이)
   const secOf = (t: { setValue: string }) => (Number(t.setValue.slice(1)) / 10).toFixed(1).replace(/\.0$/, "");
@@ -152,8 +152,8 @@ export default function AlarmDetail() {
   const plain = (() => {
     if (stuck) {
       const w0 = stuck.wait[0];
-      const base = `'${stuck.a.step.label.replace(/^S\d+\s*/, "")}' 동작에서 ${quoted(w0.comment, "을")} 알리는 신호를 기다리는 사이`;
-      return tm0 ? `${base}, 정해 둔 감시 시간(${secOf(tm0)}초)을 넘겨 알람이 울렸습니다.` : `${base} 멈춰 알람이 울렸습니다.`;
+      const base = `'${stuck.a.step.label.replace(/^S\d+\s*/, "")}' 동작에서 '${w0.comment}' 신호를 기다리`;
+      return tm0 ? `${base}고 있었습니다. 그러다 감시 시간(${secOf(tm0)}초)을 넘겨 알람이 울렸습니다.` : `${base}다 멈춰 알람이 울렸습니다.`;
     }
     if (c0) {
       if (c0.compare) return `${quoted(c0.comment, "이")} ${josa(String(c0.value), "으로")} 기준을 넘어 알람이 울렸습니다.`;
@@ -164,7 +164,7 @@ export default function AlarmDetail() {
       const tail = kind === "외부 신호" ? ` 우리 설비 밖${c0.checkWith ? `(${c0.checkWith})` : ""}에서 온 신호입니다.` : "";
       return `${head} ${on ? "켜져서" : "꺼져서"} 알람이 울렸습니다.${tail}`;
     }
-    if (tm0) return `정해 둔 감시 시간(${secOf(tm0)}초) 안에 동작이 끝나지 않아 알람이 울렸습니다.`;
+    if (tm0) return `감시 시간(${secOf(tm0)}초) 안에 동작이 끝나지 않아 알람이 울렸습니다.`;
     return "";
   })();
   const nonReset = causes.filter((x) => x.actionType !== "리셋");
@@ -173,27 +173,24 @@ export default function AlarmDetail() {
     {
       title: "안전 먼저",
       body: manual && manual.safety !== "-" ? manual.safety : "설비가 멈춘 상태인지 확인하고 기본 보호구를 착용하세요.",
-      note: trace.alarm.protect === "안전" ? "안전 구분 알람 — 원인 확인 전 리셋·재가동 금지" : undefined,
+      note: trace.alarm.protect === "안전" ? "안전 알람입니다. 원인을 확인하기 전에는 리셋하거나 재가동하지 마세요." : undefined,
       warn: true,
     },
     kind === "외부 신호"
       ? {
-          title: "신호 경계 공동 확인",
-          body: `우리 쪽 수신값(${c0?.device ?? "-"})·통신 상태를 확인하고, ${withWa(c0?.checkWith || "신호를 보내는 부서")} ${c0?.comment ?? "신호"} 상태를 함께 점검하세요.`,
-          note: "우리 설비 밖에서 온 신호입니다. 송신 측 고장으로 단정하지 말고, 우리 래더를 바꿔 숨기지도 않습니다.",
+          title: "보내는 쪽과 같이 확인",
+          body: `우리 쪽 수신값(${c0?.device ?? "-"})과 통신 상태를 먼저 보세요. 그다음 ${withWa(c0?.checkWith || "신호를 보내는 부서")} ${c0?.comment ?? "신호"} 상태를 같이 점검하세요.`,
+          note: "보내는 쪽 고장이라고 바로 단정하지는 마세요.",
         }
       : kind === "래더 로직"
         ? {
-            title: stuck ? "멈춘 곳 확인 — PLC 담당과 함께" : "설비 프로그램 조건 확인 — PLC 담당과 함께",
+            title: stuck ? "멈춘 곳 확인 (PLC 담당과 함께)" : "래더 조건 확인 (PLC 담당과 함께)",
             body: stuck
               ? `먼저 ${josa(stuck.wait[0].where || `${stuck.wait[0].comment} 센서`, "이")} ${quoted(stuck.wait[0].comment, "을")} 제대로 감지하는지 보세요. 이상이 없으면 ${tm0 ? `${secOf(tm0)}초 기준과 ` : ""}동작 순서가 맞는지 PLC 담당과 확인하세요.`
-              : `알람을 켠 조건이 설비 프로그램 안에 있습니다. ${tm0 ? `${secOf(tm0)}초 기준과 ` : ""}동작 순서가 맞는지 PLC 담당과 확인하세요.`,
+              : `알람을 켠 조건이 래더 안에 있습니다. ${tm0 ? `${secOf(tm0)}초 기준과 ` : ""}동작 순서가 맞는지 PLC 담당과 확인하세요.`,
             detail: stuck
-              ? `PLC 담당에게 알려 줄 것: ${stuck.a.step.label} 단계 · 기다린 신호 ${stuck.wait.map((c) => c.device).join(", ")}${tm0 ? ` · 타이머 ${tm0.device} ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step})` : ""}`
-              : `PLC 담당에게 알려 줄 것: 추적이 멈춘 곳 ${trace.leaves.map((l) => l.device).join(", ")}${tm0 ? ` · 타이머 ${tm0.device} ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step})` : ""}`,
-            note: stuck
-              ? "이 동작이 평소보다 느렸는지는 동작별 걸린 시간 기록이 아직 없어 알 수 없습니다."
-              : "센서 고장이나 타이머 문제로 확정된 것은 아닙니다.",
+              ? `PLC 담당에게 알려 줄 것: ${stuck.a.step.label} 단계 / 기다린 신호 ${stuck.wait.map((c) => c.device).join(", ")}${tm0 ? ` / 타이머 ${tm0.device} ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step})` : ""}`
+              : `PLC 담당에게 알려 줄 것: 추적이 멈춘 곳 ${trace.leaves.map((l) => l.device).join(", ")}${tm0 ? ` / 타이머 ${tm0.device} ${(Number(tm0.setValue.slice(1)) / 10).toFixed(1)}초(스텝 ${tm0.step})` : ""}`,
           }
         : {
             title: "먼저 볼 곳",
@@ -202,20 +199,20 @@ export default function AlarmDetail() {
           },
     best
       ? {
-          title: "비슷한 과거 건에서 해결 기록이 있는 조치",
-          body: `${best.action} — 기록 ${best.tries}건 중 해결 ${best.resolved}건, 평균 ${Math.round(best.avgMin)}분`,
-          note: `${best.tries <= 2 ? "표본 적음 · 참고만 하세요" : "참고 순서이며, 이번에도 맞는 원인이라는 보장은 아닙니다"} · 마지막 ${best.lastAt ? fmtDate(best.lastAt, false) : "-"}`,
+          title: "과거에 해결된 조치",
+          body: `${best.action} (${best.tries}건 중 ${best.resolved}건 해결, 평균 ${Math.round(best.avgMin)}분)`,
+          note: `${best.tries <= 2 ? "기록이 적으니 참고만 하세요." : "현장 상태를 먼저 확인하세요."} 최근 조치 ${best.lastAt ? fmtDate(best.lastAt, false) : "-"}`,
         }
       : { title: "과거 기록 없음", body: "아래 매뉴얼 순서대로 점검하세요. 이번 기록이 첫 근거가 됩니다." },
   ];
 
   const handover = [
-    `[인수인계] ${eq.id} ${eq.name} — [${trace.alarm.level}알람] ${code} ${trace.alarm.name}`,
-    `· 발생: ${active ? `${fmtDate(state!.since)} (${elapsed(state!.since, live.now)} 경과)` : savedLog ? fmtDate(savedLog.occurredAt) : "-"}`,
-    `· 래더 추적: ${trace.alarm.device} ← ${trace.culprits.map((c) => `${c.device}(${c.comment})`).join(", ") || "래더 로직(타이머 판정)"} [${kind}]`,
-    `· 진행한 조치: ${[manual ? manual.steps.filter((s) => checked[s]).join(" → ") : "", savedLog ? `${savedLog.action} (${savedLog.result})` : ""].filter(Boolean).join(" · ") || "아직 없음"}`,
-    best ? `· 과거 해결 사례: ${best.action} (해결 ${best.resolved}/${best.tries})` : "",
-    related[0] ? `· 재발 방지안: ${related[0].title}` : "",
+    `[인수인계] ${eq.id} ${eq.name} [${trace.alarm.level}알람] ${code} ${trace.alarm.name}`,
+    `- 발생: ${active ? `${fmtDate(state!.since)} (${elapsed(state!.since, live.now)} 경과)` : savedLog ? fmtDate(savedLog.occurredAt) : "-"}`,
+    `- 래더 추적: ${trace.culprits.map((c) => `${c.device}(${c.comment})`).join(", ") || "래더 로직(타이머 판정)"}에서 ${trace.alarm.device}(알람) 켜짐 [${kind}]`,
+    `- 진행한 조치: ${[manual ? manual.steps.filter((s) => checked[s]).join(", ") : "", savedLog ? `${savedLog.action} (${savedLog.result})` : ""].filter(Boolean).join(" / ") || "아직 없음"}`,
+    best ? `- 과거 해결 사례: ${best.action} (해결 ${best.resolved}/${best.tries})` : "",
+    related[0] ? `- 재발 방지안 (${related[0].title})` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -248,7 +245,7 @@ export default function AlarmDetail() {
               <StatusBadge status="ALARM" level={trace.alarm.level} /> {elapsed(state!.since, live.now)} 경과
             </span>
           ) : (
-            <span className="text-slate-400">지금은 발생 중이 아님 · 대표 시나리오 값으로 추적</span>
+            <span className="text-slate-400">지금 떠 있는 알람 아님 (대표 시나리오 값으로 추적)</span>
           )}
         </span>
       </div>
@@ -314,10 +311,9 @@ export default function AlarmDetail() {
                   "매뉴얼 항목 없음"
                 )}
                 {best && (
-                  <>
-                    {" "}
-                    · 비슷한 과거 건에서 &lsquo;{best.action}&rsquo; 해결 기록 {best.resolved}/{best.tries} <EvidenceTag n={best.tries} />
-                  </>
+                  <span className="mt-0.5 block">
+                    과거 해결: &lsquo;{best.action}&rsquo; {best.resolved}/{best.tries}건 <EvidenceTag n={best.tries} />
+                  </span>
                 )}
               </dd>
             </div>
@@ -335,22 +331,20 @@ export default function AlarmDetail() {
             )}
           </dl>
           <p className="mt-3 text-xs text-slate-400">
-            래더가 확인해 주는 것은 &lsquo;어떤 조건이 이 알람을 켰는가&rsquo;까지입니다({active ? "알람 발생 순간 값" : "대표 시나리오 값"} 기준 —{" "}
-            <Term k="자기유지" /> 알람은 지금 값이 아닌 발생 순간 값으로 추적). 그 조건 뒤의 물리 원인은 매뉴얼과 과거 조치가 후보로 제시합니다.
+            {active ? "알람이 뜬 순간" : "대표 시나리오"}의 신호값으로 어떤 조건이 알람을 켰는지 찾습니다. 실제 고장 원인은 매뉴얼과 과거 조치에서 후보로 봅니다.
           </p>
           <div className="mt-2 rounded-md bg-black/20 px-2 py-1.5 text-[11px] text-slate-400">
-            근거 데이터: {active ? `발생 순간 스냅샷 ${fmtDate(state!.since)}` : "대표 시나리오 값(지금 발생 중 아님)"} · 래더 {prog.id} (
-            {srcProg?.builtIn ? "기본 제공" : `업로드 ${srcProg?.uploadedAt ? fmtDate(srcProg.uploadedAt, false) : ""}`} · 래더 파일 지문 {rev}) · 추적에 쓴
-            신호값 {pathDevices.length - missing.length}/{pathDevices.length} 확보 — 물리 원인은 현장 확인
-            {missing.length > 0 && <span className="text-amber-200"> · 확인 필요: {missing.join(", ")} 값 없음</span>}
+            근거: {active ? `${fmtDate(state!.since)} 알람 순간 신호값` : "대표 시나리오 값"} {pathDevices.length - missing.length}/{pathDevices.length}개 확보, 적용 래더{" "}
+            <span title={`${srcProg?.builtIn ? "기본 제공" : `업로드 ${srcProg?.uploadedAt ? fmtDate(srcProg.uploadedAt, false) : ""}`}, 파일 지문 ${rev}`}>{prog.id}</span>
+            {missing.length > 0 && <span className="text-amber-200"> · 값 없음: {missing.join(", ")}</span>}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
             {ai ? (
               <span>
-                AI 설명 ({ai.model}) · 민감 값 {ai.masked ?? 0}개 가림 · 원인 판단은 래더 추적 결과 그대로
+                AI 설명({ai.model}), 민감한 값 {ai.masked ?? 0}개는 가리고 보냄. 원인 판단은 래더 추적 그대로입니다.
               </span>
             ) : (
-              <span>규칙 기반 설명 (래더 추적 + 조치이력 DB). AI 키가 없어도 같은 결론을 보여줍니다.</span>
+              <span>AI 추정 없이 래더와 조치이력 DB로 계산해서, 늘 같은 결과가 나옵니다.</span>
             )}
             {data.config.ai && (
               <button onClick={askAi} className="text-violet-300 hover:underline" disabled={aiState === "loading"}>
@@ -371,8 +365,9 @@ export default function AlarmDetail() {
         <div data-guide="todo" className="order-first rounded-xl border border-sky-500/40 bg-sky-500/5 p-4 xl:order-none">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-sky-100">지금 할 일</h2>
-            <span className="text-[11px] text-slate-400">처음 보는 사람도 이 순서대로</span>
+            <span className="text-[11px] text-slate-400">위에서부터 차례로</span>
           </div>
+          {plain && <p className="mt-2 rounded-md bg-sky-500/10 px-2 py-1.5 text-sm text-slate-100 xl:hidden">쉽게 말하면: {plain}</p>}
           <ol className="mt-3 space-y-2">
             {todo.map((t, i) => (
               <li key={t.title} className={`flex gap-3 rounded-lg p-2.5 ${t.warn ? "border border-amber-500/50 bg-amber-500/10" : "bg-slate-900/70"}`}>
@@ -396,23 +391,12 @@ export default function AlarmDetail() {
         </div>
       </div>
 
-      {(active || openWork) && (
-        <WorkPanel
-          equipmentId={eqId}
-          alarmCode={code}
-          startedAt={active ? new Date(state!.since).toISOString() : openWork!.startedAt}
-          active={active}
-          now={live.now}
-          suggestOwner={manual?.owner}
-        />
-      )}
-
       <Card
         id="trace-flow"
         title={traceView === "flow" ? "알람이 켜지는 흐름도" : "래더 역추적 경로"}
         right={
           <div className="flex items-center gap-2">
-            <span className="hidden text-[11px] text-slate-400 sm:inline">코드 계산 · 매번 같은 결과</span>
+            <span className="hidden text-[11px] text-slate-400 sm:inline">래더 그대로 계산 (늘 같은 결과)</span>
             <div className="flex rounded-md border border-slate-700 text-xs" role="tablist" aria-label="보기 방식">
               {(
                 [
@@ -441,10 +425,10 @@ export default function AlarmDetail() {
         )}
         <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-slate-400">
           <span>
-            <span className="rounded bg-fuchsia-600 px-1 font-bold text-white">◎ 알람 성립 원인</span> 알람 쪽으로 성립 + 평상값과 다른 끝 접점 (알람 등급
-            색과 구분)
+            <span className="rounded bg-fuchsia-600 px-1 font-bold text-white">◎ 알람 성립 원인</span> 평상값과 달라져 알람을 켠 끝 접점 (이 색은 알람
+            등급과 상관없음)
           </span>
-          <span>자기유지·해제 조건·운전 상태는 원인에서 제외</span>
+          <span>자기유지, 해제 조건, 운전 상태 접점은 원인에서 뺐습니다</span>
         </div>
       </Card>
 
@@ -453,16 +437,27 @@ export default function AlarmDetail() {
           key={seq.id}
           id="sequence"
           title={`순차 동작 흐름도 · ${seq.title}`}
-          right={<span className="text-[11px] text-slate-400">{pos.known ? "알람 순간 값으로 현재 단계 표시" : "단계 값 미수집"}</span>}
+          right={<span className="text-[11px] text-slate-400">{pos.known ? "알람이 뜬 순간의 단계 표시" : "단계 값 없음"}</span>}
         >
           <SequenceFlow seq={seq} position={pos} />
         </Card>
       ))}
 
 
+      {(active || openWork) && (
+        <WorkPanel
+          equipmentId={eqId}
+          alarmCode={code}
+          startedAt={active ? new Date(state!.since).toISOString() : openWork!.startedAt}
+          active={active}
+          now={live.now}
+          suggestOwner={manual?.owner}
+        />
+      )}
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <ExpertOnly label="관련 래더 표(스텝·명령·디바이스·지금 값)">
+          <ExpertOnly label="관련 래더 표">
             <Card title={`관련 래더 (스텝 ${trace.rungSteps[0]}~${trace.rungSteps[trace.rungSteps.length - 1]})`} bodyClass="p-0">
               <table className="w-full text-sm">
                 <thead className="text-left text-[11px] text-slate-400">
@@ -496,16 +491,16 @@ export default function AlarmDetail() {
                 </tbody>
               </table>
               <div className="px-3 py-2 text-[11px] text-slate-400">
-                회로 {rungs.length}개 중 이 알람과 관련된 것만 보여줍니다. 전체 래더는 PLC 프로그램 화면에서 볼 수 있습니다.
+                회로 {rungs.length}개 중 이 알람과 관련된 것만 보입니다. 전체 래더는 PLC 프로그램 화면에서 보세요.
               </div>
             </Card>
           </ExpertOnly>
 
           <Card
-            title={`과거 조치 (최근 90일 · ${prog.id} ${units.length}대)`}
+            title={`과거 조치 (최근 90일, ${prog.id} ${units.length}대)`}
             right={
-              <span className="text-[11px] text-slate-400" title="해결률을 표본 수로 보정한 값(윌슨 하한)으로 정렬 — 1/1이 5/6보다 앞서지 않음">
-                표본 수 보정 순
+              <span className="text-[11px] text-slate-400" title="기록이 적으면 해결률을 낮춰 잡아 정렬합니다(윌슨 하한). 1/1이 5/6보다 앞에 오지 않습니다.">
+                기록 수 반영 순
               </span>
             }
           >
@@ -576,23 +571,22 @@ export default function AlarmDetail() {
           <Card id="guide-manual" title="원천별 조치 가이드 (매뉴얼)" right={<SourceBadge kind={kind} />}>
             {kind === "외부 신호" && (
               <div className="mb-3 rounded-lg border border-violet-500/40 bg-violet-500/10 p-3 text-sm">
-                <div className="font-semibold text-violet-200">우리 설비 밖에서 온 신호입니다</div>
+                <div className="font-semibold text-violet-200">보내는 쪽부터 확인하세요</div>
                 <div className="mt-1 text-slate-300">
-                  확인처: <b>{trace.culprits[0]?.checkWith || "-"}</b>. 우리 설비의 래더를 바꿔 숨기지 말고, 신호를 보내는 쪽을 먼저 확인하세요.
+                  확인처: <b>{trace.culprits[0]?.checkWith || "-"}</b>. 우리 래더를 바꿔 알람을 숨기지는 마세요.
                 </div>
               </div>
             )}
             {kind === "래더 로직" && (
               <div className="mb-3 rounded-lg border border-teal-500/40 bg-teal-500/10 p-3 text-sm">
-                <div className="font-semibold text-teal-200">센서 신호가 아니라 설비 프로그램 안의 조건(시간 감시 등)이 켠 알람입니다</div>
+                <div className="font-semibold text-teal-200">센서가 아니라 래더 안의 조건(시간 감시 등)이 켠 알람입니다</div>
                 <div className="mt-1 text-xs text-slate-400">
-                  그렇다고 센서가 정상이라는 뜻은 아닙니다. 센서 점검과 함께, 추적이 멈춘 지점(
-                  {trace.leaves.map((l) => l.device).join(", ")})의 동작 프로그램도 PLC 담당과 확인하세요.
+                  센서 점검과 함께, 추적이 멈춘 곳({trace.leaves.map((l) => l.device).join(", ")})의 동작도 PLC 담당과 확인하세요.
                 </div>
                 <div className="mt-1 text-slate-300">
-                  감시 시간 설정{" "}
+                  감시 시간{" "}
                   {trace.timersInPath.map((t) => `${t.device} ${t.setValue}(${(Number(t.setValue.slice(1)) / 10).toFixed(1)}초, 스텝 ${t.step})`).join(", ")}이
-                  지금 공정 속도에 맞는지는 아래 개선 제안에서 확인하세요. 래더 변경은 PLC 담당 검토 후 반영합니다.
+                  지금 공정 속도에 맞는지는 아래 개선 제안에서 보세요. 래더는 PLC 담당이 검토한 뒤에 바꿉니다.
                 </div>
               </div>
             )}
@@ -625,7 +619,7 @@ export default function AlarmDetail() {
                 <div className="mb-2 text-sm">
                   <span className="text-slate-400">원인 후보:</span> <b>{manual.cause}</b>{" "}
                   <span className="text-xs text-slate-400">
-                    ({manual.id} · 담당 {manual.owner} · 원천 <span className="mono">{manual.sourceDevice}</span>)
+                    ({manual.id}, 담당 {manual.owner}, 원천 <span className="mono">{manual.sourceDevice}</span>)
                   </span>
                 </div>
                 <label
@@ -633,7 +627,7 @@ export default function AlarmDetail() {
                 >
                   <input type="checkbox" checked={safety} onChange={(e) => setSafety(e.target.checked)} className="mt-1" />
                   <span>
-                    <b className="text-amber-200">안전 확인</b> — {manual.safety === "-" ? "별도 안전 조치 없음 · 기본 보호구 착용 확인" : manual.safety}
+                    <b className="text-amber-200">안전 확인:</b> {manual.safety === "-" ? "따로 정한 안전 조치는 없습니다. 기본 보호구를 착용했는지 확인하세요." : manual.safety}
                   </span>
                 </label>
                 <ol className="space-y-1">
@@ -656,12 +650,12 @@ export default function AlarmDetail() {
                 </ol>
               </div>
             ) : (
-              <div className="text-sm text-slate-400">이 원천에 대한 매뉴얼 항목이 없습니다. 조치 후 기록하면 매뉴얼 보강 제안에 반영됩니다.</div>
+              <div className="text-sm text-slate-400">이 신호에 맞는 매뉴얼 항목이 없습니다. 조치 후 기록하면 매뉴얼 보강 제안에 들어갑니다.</div>
             )}
           </Card>
 
           {related.length > 0 && (
-            <Card title="DB가 제안하는 재발 방지" right={<span className="text-[11px] text-slate-400">조치이력 분석</span>}>
+            <Card title="재발 방지 제안" right={<span className="text-[11px] text-slate-400">조치이력 기준 추정치</span>}>
               <ul className="space-y-2">
                 {related.map((p) => (
                   <li key={p.id}>
@@ -673,10 +667,13 @@ export default function AlarmDetail() {
                       <div className="text-sm font-medium">{p.title}</div>
                       <div className="mt-1 text-xs text-slate-400">
                         {p.effect.avoided > 0
-                          ? `과거 ${p.effect.total}건 중 ${p.effect.avoided}건 ${p.kind === "pm" ? "계획 정비로 전환" : p.kind === "unit" || p.kind === "inspect" ? "근본 조치 시 최대" : "억제"} 추정 · `
+                          ? p.kind === "pm"
+                            ? `과거 ${p.effect.total}건 중 ${p.effect.avoided}건을 계획 정비로 돌림, `
+                            : p.kind === "unit" || p.kind === "inspect"
+                              ? `근본 조치하면 과거 ${p.effect.total}건 중 최대 ${p.effect.avoided}건 줄어듦, `
+                              : `과거 ${p.effect.total}건 중 ${p.effect.avoided}건 억제, `
                           : ""}
-                        연 {Math.round(p.effect.perYearMin / 60)}
-                        시간 정지 감소 추정
+                        {`연 ${Math.round(p.effect.perYearMin / 60)}시간 정지 감소`}
                       </div>
                     </Link>
                   </li>
@@ -686,7 +683,7 @@ export default function AlarmDetail() {
           )}
 
           <div id="record" className="scroll-mt-20" />
-          <Card id="guide-record" title="조치 기록 → 조치이력 DB">
+          <Card id="guide-record" title="조치 기록 (조치이력 DB에 저장)">
             {saved ? (
               <div className="space-y-2 text-sm">
                 <div className="rounded-md bg-emerald-500/10 p-3 text-emerald-300">{saved}</div>
@@ -717,14 +714,14 @@ export default function AlarmDetail() {
                     await data
                       .saveWork(
                         { ...base, status: next.status, owner: base.owner || d.worker || "", nextAction: next.nextAction || base.nextAction },
-                        `조치 기록 저장(${d.result}) → ${next.status}`,
+                        `조치 기록 저장(${d.result}), ${josa(next.status, "으로")} 바꿈`,
                       )
                       .catch(() => undefined);
                   }
-                  if (d.result === "해결" && active) live.recover(eqId, `${eqId} ${code} 조치 완료(${d.action}) → 가동`);
+                  if (d.result === "해결" && active) live.recover(eqId, `${eqId} 가동 복귀 (${code} 조치 완료: ${d.action})`);
                   setSaved(
                     d.result === "해결"
-                      ? `저장했습니다. ${active ? `${josa(eqId, "이")} 가동으로 바뀌었습니다. ` : ""}이 기록은 다음 진단과 개선 제안에 바로 반영됩니다.`
+                      ? `저장했습니다. ${active ? `${josa(eqId, "이")} 가동으로 바뀌었습니다. ` : ""}이 기록은 다음 진단과 개선 제안에 바로 들어갑니다.`
                       : "미해결로 저장했습니다. 인수인계 메모를 복사해 다음 근무조에 넘기세요.",
                   );
                 }}
@@ -746,7 +743,7 @@ export default function AlarmDetail() {
         </div>
       </div>
       <div className="text-[11px] text-slate-400">
-        래더 행 {prog.rows.length}개 · 디바이스 코멘트 {prog.devices.size}개 · {formatRow(prog.rows[0]).length > 0 ? "IL 형식" : ""}
+        래더 {prog.rows.length}줄, 디바이스 코멘트 {prog.devices.size}개{formatRow(prog.rows[0]).length > 0 ? " (IL 명령어 목록 형식)" : ""}
       </div>
     </div>
   );

@@ -66,7 +66,7 @@ export default function EquipmentPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/" className="text-sm text-slate-400 hover:text-slate-200">
-          ← 레이아웃
+          ← 실시간 현황
         </Link>
         <EquipIcon process={e.process} className="h-8 w-8 text-slate-300" />
         <h1 className="text-xl font-semibold">
@@ -87,10 +87,11 @@ export default function EquipmentPage() {
       </div>
 
       <Card
-        title="조치 기록 기준 지표 (최근 30일 · 근사)"
+        title="조치 기록으로 본 지표 (최근 30일, 근사치)"
         right={
           <span className="text-[11px] text-amber-200/90">
-            운전 시간·고장 이벤트가 없어 조치 기록으로 본 근사치 — 기록을 많이 남긴 설비가 나빠 보일 수 있음. 실제 MTBF·MTTR은 PLC 정지 이벤트로 계산
+            운전 시간과 고장 이벤트 기록이 없어 조치 기록으로 대신 계산했습니다. 기록을 많이 남긴 설비가 나빠 보일 수 있습니다. 실제 MTBF, MTTR은 PLC 정지
+            이벤트로 계산합니다.
           </span>
         }
       >
@@ -98,7 +99,7 @@ export default function EquipmentPage() {
           <Metric
             label="조치 기록 건수"
             value={`${rel.mine.count}건`}
-            sub={`같은 공정 평균 ${(rel.fleetCount / Math.max(1, rel.n)).toFixed(1)}건 · 기록 간 평균 간격 ${rel.mine.mtbfH.toFixed(0)}시간(`}
+            sub={`같은 공정 평균 ${(rel.fleetCount / Math.max(1, rel.n)).toFixed(1)}건, 기록 간 평균 간격 ${rel.mine.mtbfH.toFixed(0)}시간(`}
             subTerm={<Term k="MTBF">MTBF 근사</Term>}
             bad={rel.mine.mtbfH < rel.avgMtbf * 0.8}
           />
@@ -150,17 +151,17 @@ export default function EquipmentPage() {
                 href={`/alarm/${id}/${s.alarm.code}`}
                 className="inline-block rounded-md bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800"
               >
-                알람 원인 · 먼저 할 일 보기 →
+                원인과 할 일 보기 →
               </Link>
             </div>
           ) : null}
           {why && (
             <div className={s.alarm ? "mt-4 border-t border-slate-800 pt-3" : ""}>
-              <div className="mb-2 text-xs text-slate-400">자동운전 조건 역추적 (알람 없이 멈춘 이유 찾기)</div>
+              <div className="mb-2 text-xs text-slate-400">알람 없이 멈춘 이유 (자동운전 조건 역추적)</div>
               <WhyNotView r={why} equipmentId={id} />
               {s.status !== "RUN" && !s.alarm && (
-                <Btn tone="success" className="mt-3" onClick={() => live.recover(id, `${id} 조건 복구 → 가동`)}>
-                  조건 복구 확인 → 가동
+                <Btn tone="success" className="mt-3" onClick={() => live.recover(id, `${id} 조건 복구 후 가동 복귀`)}>
+                  조건 복구 확인 후 가동
                 </Btn>
               )}
             </div>
@@ -189,7 +190,7 @@ export default function EquipmentPage() {
       </div>
 
       {props.length > 0 && (
-        <Card title="이 설비에 해당하는 개선 제안">
+        <Card title="이 설비에 해당하는 개선 제안" right={<span className="text-[11px] text-slate-400">정지 감소 시간은 과거 기록으로 낸 추정치</span>}>
           <div className="grid gap-2 md:grid-cols-2">
             {props.map((p) => (
               <Link
@@ -199,7 +200,7 @@ export default function EquipmentPage() {
               >
                 <div className="text-[11px] text-sky-300">{KIND_LABEL[p.kind]}</div>
                 <div className="text-sm">{p.title}</div>
-                <div className="text-xs text-slate-400">연 {Math.round(p.effect.perYearMin / 60)}시간 정지 감소 추정</div>
+                <div className="text-xs text-slate-400">연 {Math.round(p.effect.perYearMin / 60)}시간 정지 감소</div>
               </Link>
             ))}
           </div>

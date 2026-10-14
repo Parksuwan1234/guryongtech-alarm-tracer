@@ -563,7 +563,7 @@ export function debounceChange(prog: ParsedProgram, alarmDevice: string, k: numb
   const after = afterRows.map(formatRow);
   return {
     kind: "debounce",
-    title: `${newTimer}(${sec}초) 지속 판정 추가 — 순간 신호로는 알람이 켜지지 않게`,
+    title: `${newTimer}(${sec}초) 지속 판정 추가 (순간 신호로는 알람이 안 켜지게)`,
     before,
     after,
     diff: lineDiff(before, after),

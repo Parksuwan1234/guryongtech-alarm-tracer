@@ -183,8 +183,8 @@ export function ActionForm({
       </Field>
       <div className="col-span-2 rounded-lg border border-violet-500/30 bg-violet-500/5 p-2">
         <div className="mb-1 flex items-center gap-2 text-xs">
-          <span className="font-semibold text-violet-200">현장 메모 → 표준 항목 정리</span>
-          <span className="text-slate-400">말하듯 적으면 아래 칸을 채웁니다. 저장 전 확인하세요.</span>
+          <span className="font-semibold text-violet-200">현장 메모</span>
+          <span className="text-slate-400">말하듯 적고 &lsquo;정리&rsquo;를 누르면 아래 칸이 채워집니다. 저장 전에 확인하세요.</span>
         </div>
         <div className="flex gap-2">
           <input
@@ -200,7 +200,7 @@ export function ActionForm({
         {norm && (
           <div className="mt-1 space-y-1 text-[11px] text-slate-400">
             <div>
-              {norm.by === "AI" ? "AI(실험 기능)가 정해진 선택지 안에서 정리" : "키워드 규칙으로 정리"} · 근거: {norm.notes.join(" · ") || "없음"}
+              {norm.by === "AI" ? "AI(실험 기능)가 정해진 선택지 안에서 정리했습니다." : "키워드 규칙으로 정리했습니다."} 근거: {norm.notes.join(" / ") || "없음"}
             </div>
             {norm.causeCandidates.length > 0 && (
               <div className="flex flex-wrap items-center gap-1">
@@ -291,7 +291,7 @@ export function ActionForm({
       <Field label="조치 시간(분)">
         <input type="number" min={0} className={inputCls} value={d.durationMin} onChange={(e) => set("durationMin", Number(e.target.value))} />
       </Field>
-      <Field label="측정값 (선택: 신호 지속·응답 시간·온도 등)">
+      <Field label="측정값 (있으면: 신호 지속 시간, 응답 시간, 온도 등)">
         <div className="flex gap-1">
           <input
             type="number"
@@ -324,7 +324,7 @@ export function ActionForm({
             취소
           </Btn>
         )}
-        {!valid && <span className="text-xs text-slate-400">설비·알람·조치 내용·작업자는 꼭 적어 주세요</span>}
+        {!valid && <span className="text-xs text-slate-400">설비, 알람, 조치 내용, 작업자는 꼭 적어 주세요</span>}
         {onDelete && (
           <Btn tone="danger" className="ml-auto" onClick={onDelete}>
             삭제

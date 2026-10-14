@@ -35,7 +35,7 @@ export function EvidenceTag({ n }: { n: number }) {
   const few = n <= 2;
   return (
     <span
-      title="같은 알람의 과거 기록 수. 기록이 많아도 원인 분류·설비 조건 차이까지 보장하지는 않습니다."
+      title="같은 알람의 과거 기록 수입니다. 기록이 많아도 원인 분류나 설비 조건 차이까지 맞는다는 뜻은 아닙니다."
       className={`rounded border px-1 py-px text-[10px] ${few ? "border-amber-500/50 text-amber-200" : "border-slate-600 text-slate-300"}`}
     >
       {few ? `표본 적음 · 이력 ${n}건` : `참고 이력 ${n}건`}
@@ -61,7 +61,7 @@ export function ProtectBadge({ protect }: { protect: string }) {
         : "border-sky-400/50 text-sky-200 bg-sky-500/10";
   return (
     <span
-      title="경·중 등급과 별개인 보호 구분 — 안전·설비 보호 알람은 래더 변경 제안 대상에서 제외"
+      title="경알람/중알람 등급과 별개인 보호 구분입니다. 안전, 설비 보호 알람은 래더 변경을 제안하지 않습니다."
       className={`rounded border px-1.5 py-0.5 text-[11px] ${tone}`}
     >
       {protect}
@@ -70,9 +70,9 @@ export function ProtectBadge({ protect }: { protect: string }) {
 }
 
 export const SOURCE_META: Record<SourceKind, { text: string; bg: string; border: string; desc: string }> = {
-  "현장 입력": { text: "text-sky-300", bg: "bg-sky-500/15", border: "border-sky-500/50", desc: "센서·스위치·서보앰프 등 설비의 물리 입력" },
-  "외부 신호": { text: "text-violet-300", bg: "bg-violet-500/15", border: "border-violet-500/50", desc: "MES·비전 PC·유틸리티 등 우리 설비 밖에서 오는 신호" },
-  "래더 로직": { text: "text-teal-300", bg: "bg-teal-500/15", border: "border-teal-500/50", desc: "타이머 설정·시퀀스·연산 등 래더 자체의 판단" },
+  "현장 입력": { text: "text-sky-300", bg: "bg-sky-500/15", border: "border-sky-500/50", desc: "센서, 스위치, 서보앰프 같은 설비 쪽 입력" },
+  "외부 신호": { text: "text-violet-300", bg: "bg-violet-500/15", border: "border-violet-500/50", desc: "MES, 비전 PC, 유틸리티처럼 우리 설비 밖에서 오는 신호" },
+  "래더 로직": { text: "text-teal-300", bg: "bg-teal-500/15", border: "border-teal-500/50", desc: "타이머 설정, 시퀀스, 연산처럼 래더 안에서 내린 판단" },
 };
 
 export function SourceBadge({ kind, className = "" }: { kind: SourceKind | null | undefined; className?: string }) {

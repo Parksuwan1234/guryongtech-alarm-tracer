@@ -92,44 +92,44 @@ export default function ImprovePage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">개선 제안 — 조치이력 DB가 알려 주는 &lsquo;재발을 막는 법&rsquo;</h1>
+        <h1 className="text-xl font-semibold">개선 제안</h1>
         <p className="mt-1 text-sm text-slate-400">
-          최근 90일 조치이력을 코드로 분석해, 리셋만으로 풀리던 알람은 래더를 고치고, 반복 교체는 예방정비로, 현장 노하우는 매뉴얼로 옮기자고 제안합니다. 각
-          제안에는 근거 수치와 &lsquo;과거에 적용했다면&rsquo; 다시 계산한 효과가 붙습니다.
+          최근 90일 조치이력을 보고 재발을 막을 방법을 제안합니다. 리셋으로만 넘기던 알람은 래더 검토, 자꾸 바꾸는 부품은 예방정비, 현장에서 찾은 조치는
+          매뉴얼 보강으로 갑니다. 제안마다 근거 숫자와, 지난 기록에 적용했다면 어땠을지 다시 계산한 효과를 붙였습니다.
+        </p>
+        <p className="mt-2 rounded-md border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-100">
+          아래 숫자는 가상 조치이력을 코드로 계산한 예시입니다. 도구는 PLC를 읽기만 하고, 안전, 설비 보호 알람과 중알람은 원인 점검만 권합니다. 래더 수정은 담당자 승인 후 한 대부터 적용합니다.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         <Stat label="제안" value={`${data.proposals.length}건`} />
-        <Stat label="연간 정지 감소 (추정)" value={`${Math.round(total / 60)}시간`} tone="text-sky-300" sub="제안을 모두 적용했다고 가정 · 실증 전" />
-        <Stat
-          label="래더 검토안 가정 시 억제됐을 기록 (추정)"
-          value={`${avoided}건 / 90일`}
-          tone="text-teal-300"
-          sub="조치이력 측정값으로 다시 계산 · 개선 실적 아님"
-        />
+        <Stat label="연간 정지 감소" value={`${Math.round(total / 60)}시간`} tone="text-sky-300" sub="제안을 모두 적용했을 때" />
+        <Stat label="래더안대로였다면 걸러졌을 알람" value={`${avoided}건 / 90일`} tone="text-teal-300" sub="지난 측정값으로 다시 계산" />
         <Stat label="예방정비 전환" value={`${data.proposals.filter((p) => p.kind === "pm").length}건`} />
         <Stat label="승인" value={`${approved}건`} tone="text-emerald-300" />
       </div>
 
       <details className="rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-sm text-slate-300">
-        <summary className="cursor-pointer text-slate-200">제안 규칙 7가지 + 판단 보류 (모두 코드 계산 · 같은 데이터 = 같은 결과)</summary>
+        <summary className="cursor-pointer text-slate-200">제안 규칙 7가지와 판단 보류 (코드로 계산, 같은 데이터면 같은 결과)</summary>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-slate-400">
           <li>
-            경알람이 리셋만으로 60% 이상 해결되고 신호 지속이 짧으면 → 지속 판정 타이머를 끼운 래더안 (리셋 해결 건의 80%를 거르는 가장 짧은 시간, 1초 이하)
+            경알람이 리셋만으로 60% 이상 풀리고 신호가 짧으면 지속 판정 타이머를 넣는 래더안을 냅니다. 시간은 리셋 해결 건의 80%를 거르는 가장 짧은
+            값(1초 이하)입니다.
           </li>
-          <li>리셋으로 풀려도 신호가 길면 → 래더로 숨기지 않고 하드웨어 점검 권고. 중알람은 지속 판정 대상에서 제외</li>
+          <li>리셋으로 풀려도 신호가 길면 래더로 숨기지 않고 하드웨어 점검을 권합니다. 중알람과 안전, 설비 보호 알람은 지속 판정 대상이 아닙니다.</li>
           <li>
-            추적 경로에 타이머가 있고 응답이 기준보다 길되 1.5배 이내에서 풀린 건이 몰리면 → 경알람은 설정값 검토안(90% 값 + 여유, 상한 1.5배, 줄이는 제안
-            없음), 중알람·안전·설비 보호는 기준 유지 + 응답 지연 원인 개선 권고
+            추적 경로에 타이머가 있고, 응답이 기준보다 길지만 1.5배 안에서 풀린 건이 많으면 경알람은 설정값 검토안을 냅니다(90% 값에 여유를 더하고 상한
+            1.5배, 줄이는 안은 없음). 중알람과 안전, 설비 보호 알람은 기준을 그대로 두고 응답이 늦어진 원인을 고치도록 권합니다.
           </li>
-          <li>알람 뒤 같은 부품 교체·청소·보충 간격이 일정하면(변동 35% 이하) → 평균 간격의 85% 주기 예방정비, 설비별 다음 권장일</li>
-          <li>매뉴얼에 없는 조치로 3번 이상 해결되면 → 매뉴얼 보강 초안</li>
-          <li>같은 프로그램 설비군 중 한 대에 알람이 몰리면 → 그 설비 고유 하드웨어 점검</li>
-          <li>원천이 외부 신호이고 평균 대기가 15분 이상이면 → 담당 부서 협의 자료</li>
-          <li className="list-none text-slate-300">+ 리셋 위주인데 측정값이 없으면 → 제안하지 않고 &lsquo;판단 보류&rsquo;, 필요한 자료만 표시</li>
+          <li>알람 뒤 같은 부품 교체, 청소, 보충 간격이 일정하면(변동 35% 이하) 평균 간격의 85%를 예방정비 주기로 잡고 설비별 다음 날짜를 냅니다.</li>
+          <li>매뉴얼에 없는 조치로 3번 이상 풀렸으면 매뉴얼 보강 초안을 만듭니다.</li>
+          <li>같은 프로그램을 쓰는 설비 중 한 대에 알람이 몰리면 그 설비만 따로 하드웨어 점검을 권합니다.</li>
+          <li>원천이 외부 신호이고 평균 대기가 15분 이상이면 담당 부서와 협의할 자료를 만듭니다.</li>
+          <li className="list-none text-slate-300">
+            그 밖에, 리셋이 대부분인데 측정값이 없으면 제안하지 않고 &lsquo;판단 보류&rsquo;로 두며 필요한 자료만 보여 줍니다.
+          </li>
         </ol>
-        <p className="mt-2 text-xs text-slate-400">래더 변경안은 PLC 담당자 검토·승인 후 반영합니다. 이 도구는 PLC에 쓰지 않습니다.</p>
       </details>
 
       <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
@@ -169,7 +169,7 @@ export default function ImprovePage() {
                   </div>
                   <div className="mt-0.5 truncate pl-6 text-sm text-slate-100">{p.alarmName}</div>
                   <div className="truncate pl-6 text-[11px] text-slate-400">
-                    {p.appliesTo.length}대 · {p.effect.perYearMin > 0 ? `연 ${Math.round(p.effect.perYearMin / 60)}시간 정지 감소(추정)` : "효과 계산 없음"}
+                    {p.appliesTo.length}대 · {p.effect.perYearMin > 0 ? `연 ${Math.round(p.effect.perYearMin / 60)}시간 정지 감소` : "효과 계산 없음"}
                   </div>
                 </button>
               </li>
@@ -225,17 +225,17 @@ function UnitSpread({ p }: { p: Proposal }) {
   const fmt = (v: number) => (v < 10 ? v.toFixed(2) : v.toFixed(0));
   const verdict =
     b.verdict === "single"
-      ? `${top.unit}에 ${Math.round(b.topShare * 100)}%가 몰렸습니다 — 설비군 전체 변경보다 그 호기 점검이 먼저입니다.`
+      ? `${top.unit}에 ${Math.round(b.topShare * 100)}%가 몰렸습니다. 전체 설비를 바꾸기 전에 이 호기부터 점검하세요.`
       : b.verdict === "common"
-        ? `${b.rows.length}대 중 ${b.affected}대에서 발생했고, 가장 많은 ${top.unit}도 ${Math.round(b.topShare * 100)}%(${top.count}건)입니다 — 한 호기 문제가 아니라 설비군 공통으로 볼 근거입니다.`
-        : `${b.affected}대에서만 발생했습니다 — 발생한 호기부터 먼저 확인하세요.`;
+        ? `${b.rows.length}대 중 ${b.affected}대에서 떴고, 가장 많은 ${top.unit}도 ${Math.round(b.topShare * 100)}%(${top.count}건)입니다. 한 호기 문제가 아니라 여러 호기에 공통인 문제로 볼 수 있습니다.`
+        : `${b.affected}대에서만 떴습니다. 뜬 호기부터 확인하세요.`;
   return (
     <div data-guide="unit-spread" className="rounded-lg border border-slate-800 bg-black/20 p-3">
       <div className="mb-2 flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-semibold text-slate-200">호기별 분포</span>
         <span className="text-[11px] text-slate-400">
-          최근 90일 기록 {b.total}건{b.fleetMedian !== null ? ` · 전체 기록 신호 중앙값 ${fmt(b.fleetMedian)}${p.histogram?.unit ?? ""}` : ""}
-          {medians.length > 1 ? ` · 호기별 중앙값 ${fmt(Math.min(...medians))}~${fmt(Math.max(...medians))}${p.histogram?.unit ?? ""}` : ""}
+          최근 90일 가상 기록 {b.total}건 기준{b.fleetMedian !== null ? `, 전체 신호 지속 시간 중앙값 ${fmt(b.fleetMedian)}${p.histogram?.unit ?? ""}` : ""}
+          {medians.length > 1 ? ` (호기별 ${fmt(Math.min(...medians))}~${fmt(Math.max(...medians))}${p.histogram?.unit ?? ""})` : ""}
         </span>
       </div>
       <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
@@ -262,7 +262,7 @@ function UnitSpread({ p }: { p: Proposal }) {
       <p className={`mt-2 text-xs ${b.verdict === "single" ? "text-red-200" : "text-slate-300"}`}>
         {verdict}
         {b.outliers.length > 0 && (
-          <span className="text-amber-200"> 신호 길이가 다른 호기: {b.outliers.map((o) => `${o.unit}(${fmt(o.median!)}${p.histogram?.unit ?? ""})`).join(", ")} — 따로 확인하세요.</span>
+          <span className="text-amber-200"> 신호 길이가 다른 호기: {b.outliers.map((o) => `${o.unit}(${fmt(o.median!)}${p.histogram?.unit ?? ""})`).join(", ")}. 따로 확인하세요.</span>
         )}
       </p>
     </div>
@@ -280,8 +280,8 @@ function reviewSheet(p: Proposal): string {
     p.impact ? `영향 범위: ${p.impact.map((u) => `스텝 ${u.step}(${u.kind} ${u.instr})`).join(", ")}` : "",
     `추정 효과: ${p.effect.note} (연 ${Math.round(p.effect.perYearMin / 60)}시간)`,
     ...(p.checks ? ["승인 전 확인:", ...p.checks.map((c) => `  □ ${c}`)] : []),
-    ...(p.stages ? ["검증 단계:", ...p.stages.map((c) => `  - ${c.name}: ${c.state} — ${c.detail}`)] : []),
-    ...(p.pilot ? [`1대 실증: ${p.pilot.target} / 신호 ${p.pilot.tags.join(", ")} / 성공 ${p.pilot.success} / 중단 ${p.pilot.stop}`] : []),
+    ...(p.stages ? ["검증 단계:", ...p.stages.map((c) => `  - ${c.name}: ${c.state} (${c.detail})`)] : []),
+    ...(p.pilot ? [`1대 시범: ${p.pilot.target} / 신호 ${p.pilot.tags.join(", ")} / 성공 ${p.pilot.success} / 중단 ${p.pilot.stop}`] : []),
     ...(p.meta ? [`근거: ${p.meta.period}, 기록 ${p.meta.logCount}건, 규칙 ${p.meta.ruleVersion}, 계산 ${p.meta.computedAt.slice(0, 16)}`] : []),
     `검토 담당: ${p.owner}    검토자: ________    승인: ________`,
   ]
@@ -337,16 +337,16 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
                   {...p.histogram}
                   avoidLabel={
                     p.histogram.labels?.avoid ??
-                    (p.kind === "pm" ? "제안 주기 뒤에 발생한 고장 → 미리 정비로 막음" : p.kind === "inspect" ? "1초 안에 끝난 신호" : "억제되는 알람(추정)")
+                    (p.kind === "pm" ? "제안 주기보다 늦게 난 고장(미리 정비하면 막음)" : p.kind === "inspect" ? "1초 안에 끝난 신호" : "걸러지는 알람")
                   }
                   keepLabel={
-                    p.histogram.labels?.keep ?? (p.kind === "pm" ? "제안 주기보다 먼저 발생한 고장" : p.kind === "inspect" ? "1초 넘게 이어진 신호" : "그대로 알람")
+                    p.histogram.labels?.keep ?? (p.kind === "pm" ? "제안 주기보다 먼저 난 고장" : p.kind === "inspect" ? "1초 넘게 이어진 신호" : "그대로 알람")
                   }
                 />
               </div>
             )}
           </ExpertOnly>
-          <ExpertOnly label="래더 변경 전후·영향 분석" when={!!p.change}>
+          <ExpertOnly label="래더 변경 전후와 영향 범위" when={!!p.change}>
             {p.change && (
               <div>
                 <div className="mb-1 flex items-center gap-2 text-xs">
@@ -356,17 +356,17 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
                 <DiffView diff={p.change.diff} />
                 {p.impact && (
                   <div className="mt-2 text-xs text-slate-400">
-                    <span className="text-slate-300">변경 영향 분석</span> · 이 디바이스를 쓰는 곳 {p.impact.length}곳:{" "}
+                    <span className="text-slate-300">영향 범위:</span> 이 디바이스를 쓰는 곳 {p.impact.length}곳{" "}
                     {p.impact.map((u) => (
                       <span key={u.step + u.kind} className="mono mr-2">
                         스텝 {u.step}({u.instr}
-                        {u.kind === "접점" ? `→${u.outputDevices.join(",")}` : ""})
+                        {u.kind === "접점" ? `, 출력 ${u.outputDevices.join(",")}` : ""})
                       </span>
                     ))}
                     {usedElsewhere.length > 0 && (
                       <span className="text-amber-200">
                         {" "}
-                        — 다른 회로 {usedElsewhere.length}곳(스텝 {usedElsewhere.map((u) => u.step).join(", ")})의 동작 시점도 함께 바뀌니 확인
+                        다른 회로 {usedElsewhere.length}곳(스텝 {usedElsewhere.map((u) => u.step).join(", ")})도 동작 시점이 같이 바뀌니 확인하세요.
                       </span>
                     )}
                   </div>
@@ -408,14 +408,14 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
 
         <div className="space-y-3">
           <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3">
-            <div className="text-[11px] text-sky-300">조치이력으로 다시 계산한 추정 효과 (가정 조건 · 실증 전)</div>
+            <div className="text-[11px] text-sky-300">기대 효과 (지난 조치이력으로 다시 계산)</div>
             <div className="mt-1 flex items-baseline gap-3">
               {p.effect.avoided > 0 && (
                 <div>
                   <span className="text-2xl font-bold tabular-nums">{p.effect.avoided}</span>
                   <span className="text-sm text-slate-400"> / {p.effect.total}건</span>
                   <div className="text-[11px] text-slate-400">
-                    {p.kind === "pm" ? "계획 정비로 전환" : p.kind === "unit" || p.kind === "inspect" ? "근본 조치 시 최대(추정)" : "억제 추정"}
+                    {p.kind === "pm" ? "계획 정비로 전환" : p.kind === "unit" || p.kind === "inspect" ? "원인을 잡으면 최대" : "걸러짐"}
                   </div>
                 </div>
               )}
@@ -493,7 +493,7 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
               </ol>
               {p.validation && (
                 <div className="mt-1 text-[11px] text-slate-400">
-                  독립 기간 검증: 기준은 {p.validation.trainPeriod}에서만 고르고 {p.validation.testPeriod}에 적용 ({p.validation.param})
+                  독립 기간 검증: {p.validation.trainPeriod} 기록으로만 기준을 고르고 {p.validation.testPeriod} 기록에 적용해 봤습니다 ({p.validation.param})
                 </div>
               )}
               <ExpertOnly label="검증 기간 기록 분해표" when={!!p.validation?.breakdown}>
@@ -501,8 +501,8 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
                   <table className="mt-1 w-full text-[11px]">
                     <thead className="text-slate-400">
                       <tr>
-                        <th className="text-left font-normal">검증 기간 기록(조치 유형·결과별)</th>
-                        <th className="text-right font-normal">억제됨</th>
+                        <th className="text-left font-normal">검증 기간 기록 (조치 유형과 결과별)</th>
+                        <th className="text-right font-normal">걸러짐</th>
                         <th className="pl-2 text-left font-normal">의미</th>
                       </tr>
                     </thead>
@@ -526,10 +526,10 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
               </ExpertOnly>
             </div>
           )}
-          <ExpertOnly label="1대 실증 계획 세부" when={!!p.pilot}>
+          <ExpertOnly label="1대 시범 계획 세부" when={!!p.pilot}>
             {p.pilot && (
               <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-2 text-xs">
-                <div className="mb-1 font-semibold text-sky-200">1대 실증 계획</div>
+                <div className="mb-1 font-semibold text-sky-200">1대 시범 계획</div>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-slate-300">
                   <dt className="text-slate-400">대상</dt>
                   <dd>{p.pilot.target}</dd>
@@ -567,7 +567,7 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
           </div>
 
           <div className="rounded-lg border border-slate-800 p-3">
-            <div className="mb-2 text-xs text-slate-400">검토 (조치이력 DB에 함께 저장)</div>
+            <div className="mb-2 text-xs text-slate-400">검토 기록 (조치이력 DB에 같이 저장)</div>
             <div className="grid grid-cols-2 gap-2">
               <input className={inputCls} placeholder="검토자 (예: PLC 담당A)" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
               <input className={inputCls} placeholder="의견" value={comment} onChange={(e) => setComment(e.target.value)} />
@@ -596,8 +596,8 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
             )}
             {p.meta && (
               <div className="mt-2 text-[10px] text-slate-400">
-                입력 기간 {p.meta.period} · 기록 {p.meta.logCount}건 · 규칙 {p.meta.ruleVersion} · 프로그램 {p.meta.programId} · 계산{" "}
-                {fmtDate(p.meta.computedAt)} · 승인은 적용 검토 결정이며 효과의 증거가 아닙니다
+                분석 기준: 가상 이력 {p.meta.period}, 기록 {p.meta.logCount}건, 적용 래더 {p.meta.programId}, 규칙 {p.meta.ruleVersion}, 계산{" "}
+                {fmtDate(p.meta.computedAt)}. 실제 효과는 승인 후 한 대 시범 적용으로 확인합니다.
               </div>
             )}
           </div>
@@ -609,19 +609,26 @@ function ProposalCard({ p, focused }: { p: Proposal; focused: boolean }) {
 
 /** 처음 보는 사람용 한 줄 요약: 문제 / 바꿀 것 / 기대 효과(추정) / 누가 정하나 */
 function PlainSummary({ p }: { p: Proposal }) {
-  const change = p.title.includes(" — ") ? p.title.split(" — ").slice(1).join(" — ") : p.title;
+  // 제목은 "알람코드 알람이름: 바꿀 내용" 형식
+  const change = p.title.includes(": ") ? p.title.split(": ").slice(1).join(": ") : p.title;
   const cells: [string, string][] = [
     ["문제", `${p.alarmName} · ${p.evidence[0]?.value ?? ""}`],
     ["바꿀 것", change],
     [
-      "기대 효과 (추정)",
+      "기대 효과",
       p.kind === "hold"
-        ? "판단 보류 — 자료가 더 필요"
-        : `${p.effect.avoided > 0 ? `과거 ${p.effect.total}건 중 ${p.effect.avoided}건 ${p.kind === "pm" ? "계획 정비로 전환" : p.kind === "unit" || p.kind === "inspect" ? "근본 조치 시 최대" : "억제"} · ` : ""}연 ${Math.round(p.effect.perYearMin / 60)}시간 정지 감소${
-            p.validation ? ` · 독립 검증 ${p.validation.status}` : ""
-          }`,
+        ? "판단 보류, 자료가 더 필요"
+        : `${
+            p.effect.avoided > 0
+              ? p.kind === "pm"
+                ? `지난 ${p.effect.total}건 중 ${p.effect.avoided}건을 계획 정비로, `
+                : p.kind === "unit" || p.kind === "inspect"
+                  ? `원인을 잡으면 지난 ${p.effect.total}건 중 최대 ${p.effect.avoided}건 줄어듦, `
+                  : `지난 ${p.effect.total}건 중 ${p.effect.avoided}건 걸러짐, `
+              : ""
+          }연 ${Math.round(p.effect.perYearMin / 60)}시간 정지 감소 예상${p.validation ? ` (독립 검증 ${p.validation.status})` : ""}`,
     ],
-    ["누가 정하나", `${p.owner} 검토 → 승인 후 적용 (도구는 PLC에 쓰지 않음)`],
+    ["누가 정하나", `${p.owner} 검토, 승인 뒤 적용`],
   ];
   return (
     <div className="grid gap-px border-b border-slate-800 bg-slate-800 sm:grid-cols-4">
@@ -657,9 +664,9 @@ function DebounceSim({ p }: { p: Proposal }) {
   return (
     <div className="rounded-lg border border-teal-500/30 bg-teal-500/5 p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-semibold text-teal-200">가정값 비교 — 설비 설정 변경 없음</span>
+        <span className="font-semibold text-teal-200">가정값 비교 (설비 설정은 안 바뀜)</span>
         <span className="text-slate-400">
-          <Term k="지속 판정" /> 시간을 가정하면 과거 90일 기록이 어떻게 됐을지 다시 계산합니다. 제안·검토 상태는 바뀌지 않습니다.
+          <Term k="지속 판정" /> 시간을 바꿔 보면 지난 90일 기록이 어떻게 됐을지 다시 계산합니다. 제안과 검토 상태는 그대로입니다.
         </span>
       </div>
       <div className="mt-2 flex items-center gap-3">
@@ -682,7 +689,7 @@ function DebounceSim({ p }: { p: Proposal }) {
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         <div>
-          <div className="text-[11px] text-slate-400">억제됐을 기록(추정)</div>
+          <div className="text-[11px] text-slate-400">걸러졌을 기록</div>
           <div className="tabular-nums">
             <b>{hit.length}</b>
             <span className="text-slate-400"> / {logs.length}건</span>
@@ -696,7 +703,7 @@ function DebounceSim({ p }: { p: Proposal }) {
           </div>
         </div>
         <div>
-          <div className="text-[11px] text-slate-400" title="억제되면 최초 알람이 늦어지는 기록 — 실제 이상인지는 현장 확인">
+          <div className="text-[11px] text-slate-400" title="걸러지면 첫 알람이 늦어지는 기록입니다. 실제 이상인지는 현장에서 확인하세요.">
             추가 확인이 필요한 기록
           </div>
           <div className={`text-xs leading-snug tabular-nums ${realHit + resetFail.length ? "font-semibold text-amber-200" : "text-emerald-300"}`}>
@@ -713,13 +720,13 @@ function DebounceSim({ p }: { p: Proposal }) {
       </div>
       {resetFail.length > 0 && (
         <div className="mt-2 rounded border border-amber-500/40 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-100">
-          리셋했지만 풀리지 않은 짧은 신호 {resetFail.length}건({resetFail.map((l) => `${l.equipmentId} ${l.measured}s`).join(", ")})도 이 가정값이면 억제됩니다
-          — 최초 알람이 억제·지연됐을 것은 그대로이며, 뒤이은 기록이 같은 이상인지는 현장 확인이 필요합니다.
+          리셋해도 안 풀린 짧은 신호 {resetFail.length}건({resetFail.map((l) => `${l.equipmentId} ${l.measured}s`).join(", ")})도 이 값이면 걸러집니다. 이 건들은
+          첫 알람이 안 뜨거나 늦게 떴을 것입니다. 뒤이은 기록이 같은 이상인지는 현장에서 확인하세요.
         </div>
       )}
       <div className="mt-1 text-[11px] text-slate-400">
-        정지 시간 감소(추정) 90일 {Math.round(savedMin)}분 · 억제 건수는 개선 성과가 아닙니다. 가정값을 늘릴수록 억제는 늘지만 확인이 필요한 기록과 불량 추적
-        구간도 커집니다. 여기서 고른 값은 독립 검증된 값이 아니며, 검증 대상은 규칙값({rule.toFixed(1)}s)뿐입니다. 기준은 PLC·공정 담당 검토로 정합니다.
+        90일 정지 시간 감소 {Math.round(savedMin)}분. 값을 늘리면 걸러지는 알람은 늘지만, 확인할 기록과 불량 추적 구간도 같이 늘어납니다. 독립 검증을 거친
+        값은 규칙값({rule.toFixed(1)}s)뿐입니다. 기준은 PLC 담당과 공정 담당이 검토해서 정합니다.
       </div>
     </div>
   );

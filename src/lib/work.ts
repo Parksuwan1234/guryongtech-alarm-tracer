@@ -36,9 +36,9 @@ export function dueOptions(now: number): { label: string; value: string }[] {
  * '해결' 기록은 운전 복구·재발 확인까지 끝났다는 뜻이 아니므로 자동으로 종결하지 않고 '후속 확인'으로 둔다 — 종결은 사람이 정한다.
  */
 export function statusAfterLog(l: Pick<ActionLog, "result" | "actionType">): { status: WorkStatus; nextAction: string } {
-  if (l.result === "미해결") return { status: "조치 중", nextAction: "미해결 — 다음 근무조가 이어서 점검" };
-  if (l.actionType === "리셋") return { status: "후속 확인", nextAction: "리셋으로만 풀림 — 같은 알람 재발 여부 확인 후 종결" };
-  return { status: "후속 확인", nextAction: "운전 복구·재발 여부 확인 후 종결" };
+  if (l.result === "미해결") return { status: "조치 중", nextAction: "미해결. 다음 근무조가 이어서 점검" };
+  if (l.actionType === "리셋") return { status: "후속 확인", nextAction: "리셋으로만 풀림. 같은 알람이 다시 뜨는지 보고 종결" };
+  return { status: "후속 확인", nextAction: "정상 가동과 재발 여부 확인 후 종결" };
 }
 
 export const WORK_TONE: Record<WorkStatus, string> = {
