@@ -6,6 +6,16 @@ import type { TraceResult } from "./ladder";
 import type { Proposal } from "./propose";
 import type { Equipment, ManualEntry } from "./types";
 
+/** Statistics must already be scoped to the same program and alarm. */
+export function matchingHistory(causes: CauseStat[], cause?: string): CauseStat[] {
+  if (!cause?.trim()) return [];
+  return causes.filter((c) => c.cause.trim() === cause.trim() && c.actionType !== "리셋");
+}
+
+export function bestMatchingHistory(causes: CauseStat[], cause?: string): CauseStat | undefined {
+  return matchingHistory(causes, cause).find((c) => c.resolved > 0);
+}
+
 function nodeText(n: TraceResult["leaves"][number]): string {
   const v = n.compare ? `${n.value} (기준 ${n.compare.op} ${n.compare.value} ${n.satisfied ? "성립" : "불성립"})` : n.value ? "ON" : "OFF";
   return `${n.device}(${n.comment})=${v}`;
@@ -20,13 +30,15 @@ export function explainLines(eq: Equipment, t: TraceResult, manuals: ManualEntry
   if (t.timersInPath.length)
     lines.push(`경로의 타이머: ${t.timersInPath.map((x) => `${x.device} ${x.setValue}(${(Number(x.setValue.slice(1)) / 10).toFixed(1)}초)`).join(", ")}`);
   if (manuals.length) lines.push(`매뉴얼 조치(${manuals[0].cause}): ${manuals[0].steps.map((s, i) => `${i + 1}. ${s}`).join(" ")}`);
-  if (causes.length)
+  const matched = matchingHistory(causes, manuals[0]?.cause);
+  if (matched.length)
     lines.push(
-      `과거 조치: ${causes
+      `선택한 원인 후보의 과거 조치 (실제 원인 확정 아님): ${matched
         .slice(0, 3)
         .map((c) => `${c.cause}/${c.action} 해결 ${c.resolved}/${c.tries}`)
         .join("; ")}`,
     );
+  else lines.push("선택한 원인 후보와 일치하는 비리셋 조치 이력 없음. 다른 원인의 조치를 연결하지 마세요.");
   if (spreadText) lines.push(`설비군: ${spreadText}`);
   if (proposals.length) lines.push(`DB 개선 제안: ${proposals.map((p) => p.title).join("; ")}`);
   return lines;
@@ -50,8 +62,8 @@ export function ruleExplain(t: TraceResult, manuals: ManualEntry[], causes: Caus
   }
   if (c?.sourceKind === "외부 신호") out.push(`우리 설비가 아니라 ${josa(c.checkWith || "신호를 보내는 쪽", "을")} 먼저 확인하세요.`);
   else if (manuals[0]) out.push(`먼저 '${manuals[0].steps[0]}'부터 하세요 (${manuals[0].cause} 가능성).`);
-  const best = causes.find((x) => x.tries >= 2 && x.actionType !== "리셋");
-  if (best) out.push(`과거에는 '${best.action}'으로 ${best.tries}번 중 ${best.resolved}번 해결됐습니다.`);
+  const best = bestMatchingHistory(causes, manuals[0]?.cause);
+  if (best) out.push(`같은 원인 후보 '${best.cause}'의 과거 기록에서는 '${best.action}'으로 ${best.tries}번 중 ${best.resolved}번 해결됐습니다.`);
   if (spreadText) out.push(`설비군 비교: ${spreadText}.`);
   if (proposals[0]) out.push(`재발 방지안도 있습니다 (${proposals[0].title}).`);
   return out.join(" ");

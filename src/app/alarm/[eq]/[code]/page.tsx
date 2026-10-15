@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActionForm, emptyDraft } from "@/components/ActionForm";
 import { AlarmFlow, SequenceFlow } from "@/components/Flow";
 import { TraceTree } from "@/components/Trace";
@@ -13,7 +13,7 @@ import { EQUIPMENT_BY_ID, PROCESS_LABEL } from "@/data/equipment";
 import { manualsFor } from "@/data/manuals";
 import { ALARM_SCENARIO_VALUES, RUN_VALUES } from "@/data/programs";
 import { REPEAT_THRESHOLD, causeStats, fleetSpread, fmtDate, repeatCount, since } from "@/lib/analytics";
-import { explainLines, ruleExplain } from "@/lib/explain";
+import { bestMatchingHistory, explainLines, ruleExplain } from "@/lib/explain";
 import { buildRungs, formatRow, programRev, traceAlarm } from "@/lib/ladder";
 import { elapsed, useLive } from "@/lib/live";
 import { KIND_LABEL } from "@/lib/propose";
@@ -81,30 +81,41 @@ export default function AlarmDetail() {
   const [savedLog, setSavedLog] = useState<{ occurredAt: string; action: string; result: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const rule = trace ? ruleExplain(trace, manuals, causes, spreadText, related) : "";
-  const lines = trace && eq ? explainLines(eq, trace, manuals, causes, spreadText, related) : [];
+  const manual = manuals[manualIdx] ?? manuals[0];
+  const selectedManuals = manual ? [manual] : [];
+  const aiRequest = useRef<AbortController | null>(null);
+  const rule = trace ? ruleExplain(trace, selectedManuals, causes, spreadText, related) : "";
+  const lines = trace && eq ? explainLines(eq, trace, selectedManuals, causes, spreadText, related) : [];
 
+  const explanationKey = JSON.stringify(lines);
   useEffect(() => {
+    aiRequest.current?.abort();
     setAi(null);
     setAiState("idle");
-  }, [eqId, code]);
+  }, [eqId, code, explanationKey]);
 
   async function askAi() {
+    aiRequest.current?.abort();
+    const controller = new AbortController();
+    aiRequest.current = controller;
     setAiState("loading");
     try {
-      const res = await fetch("/api/explain", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lines }) });
+      const res = await fetch("/api/explain", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lines }), signal: controller.signal });
       if (res.status === 200) {
-        setAi(await res.json());
+        const result = await res.json();
+        if (controller.signal.aborted) return;
+        setAi(result);
         setAiState("idle");
       } else setAiState("none");
     } catch {
-      setAiState("none");
+      if (!controller.signal.aborted) setAiState("none");
     }
   }
 
   useEffect(() => {
-    if (data.config.ai && trace && aiState === "idle" && !ai) askAi();
-  }, [data.config.ai, trace]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (data.config.ai && trace) askAi();
+    return () => aiRequest.current?.abort();
+  }, [data.config.ai, explanationKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!eq || !prog) return <div className="text-slate-400">설비를 찾을 수 없습니다.</div>;
   if (!trace)
@@ -118,7 +129,6 @@ export default function AlarmDetail() {
   const stepSet = new Set(trace.rungSteps);
   const culpritSet = new Set(trace.culprits.map((c) => c.device));
   const pathRows = prog.rows.filter((r) => stepSet.has(r.step));
-  const manual = manuals[manualIdx];
   const kind = trace.primarySource;
   const openWork = openWorkFor(data.work, eqId, code);
   // 근거 데이터의 출처: 어떤 시점의 값과 어떤 래더 버전으로 판단했는가
@@ -167,8 +177,7 @@ export default function AlarmDetail() {
     if (tm0) return `감시 시간(${secOf(tm0)}초) 안에 동작이 끝나지 않아 알람이 울렸습니다.`;
     return "";
   })();
-  const nonReset = causes.filter((x) => x.actionType !== "리셋");
-  const best = nonReset.find((x) => x.tries >= 3) ?? nonReset[0];
+  const best = bestMatchingHistory(causes, manual?.cause);
   const todo: { title: string; body: string; note?: string; detail?: string; warn?: boolean }[] = [
     {
       title: "안전 먼저",
@@ -199,11 +208,11 @@ export default function AlarmDetail() {
           },
     best
       ? {
-          title: "과거에 해결된 조치",
+          title: "같은 원인 후보의 과거 해결 조치",
           body: `${best.action} (${best.tries}건 중 ${best.resolved}건 해결, 평균 ${Math.round(best.avgMin)}분)`,
           note: `${best.tries <= 2 ? "기록이 적으니 참고만 하세요." : "현장 상태를 먼저 확인하세요."} 최근 조치 ${best.lastAt ? fmtDate(best.lastAt, false) : "-"}`,
         }
-      : { title: "과거 기록 없음", body: "아래 매뉴얼 순서대로 점검하세요. 이번 기록이 첫 근거가 됩니다." },
+      : { title: "일치하는 해결 이력 없음", body: "선택한 원인 후보의 비리셋 해결 이력이 없습니다. 매뉴얼과 현장 상태를 확인하세요." },
   ];
 
   const handover = [
@@ -211,7 +220,7 @@ export default function AlarmDetail() {
     `- 발생: ${active ? `${fmtDate(state!.since)} (${elapsed(state!.since, live.now)} 경과)` : savedLog ? fmtDate(savedLog.occurredAt) : "-"}`,
     `- 래더 추적: ${trace.culprits.map((c) => `${c.device}(${c.comment})`).join(", ") || "래더 로직(타이머 판정)"}에서 ${trace.alarm.device}(알람) 켜짐 [${kind}]`,
     `- 진행한 조치: ${[manual ? manual.steps.filter((s) => checked[s]).join(", ") : "", savedLog ? `${savedLog.action} (${savedLog.result})` : ""].filter(Boolean).join(" / ") || "아직 없음"}`,
-    best ? `- 과거 해결 사례: ${best.action} (해결 ${best.resolved}/${best.tries})` : "",
+    best ? `- 같은 원인 후보(${best.cause})의 과거 해결 사례: ${best.action} (해결 ${best.resolved}/${best.tries})` : "",
     related[0] ? `- 재발 방지안 (${related[0].title})` : "",
   ]
     .filter(Boolean)
@@ -310,9 +319,10 @@ export default function AlarmDetail() {
                 ) : (
                   "매뉴얼 항목 없음"
                 )}
+                {!best && <span className="mt-0.5 block text-slate-400">이 원인 후보와 일치하는 비리셋 해결 이력 없음</span>}
                 {best && (
                   <span className="mt-0.5 block">
-                    과거 해결: &lsquo;{best.action}&rsquo; {best.resolved}/{best.tries}건 <EvidenceTag n={best.tries} />
+                    같은 원인 후보의 과거 해결: &lsquo;{best.action}&rsquo; {best.resolved}/{best.tries}건 <EvidenceTag n={best.tries} />
                   </span>
                 )}
               </dd>
@@ -593,7 +603,7 @@ export default function AlarmDetail() {
             {manuals.length > 1 && (
               <div className="mb-2 flex flex-wrap gap-1">
                 {manuals.map((m, i) => {
-                  const hist = causes.find((c) => c.cause === m.cause);
+                  const hist = bestMatchingHistory(causes, m.cause);
                   return (
                     <button
                       key={m.id}
