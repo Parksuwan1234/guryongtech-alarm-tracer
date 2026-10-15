@@ -360,7 +360,7 @@ export default function PlcPage() {
             순차 동작(시퀀스) 흐름도 <span className="mono text-slate-400">{prog?.id}</span>
           </span>
         }
-        right={<span className="text-[11px] text-slate-400">래더에서 단계 비트를 찾아 순서대로 그립니다. 남이 짠 래더도 똑같이 읽습니다.</span>}
+        right={<span className="text-[11px] text-slate-400">래더에서 단계 비트를 찾아 순서대로 그립니다.</span>}
       >
         {seqs.length === 0 ? (
           <div className="text-sm text-slate-400">
